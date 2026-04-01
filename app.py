@@ -111,21 +111,23 @@ def apply_professional_theme() -> None:
                 overflow: hidden;
             }
             .block-container {
-                padding-top: 0.2rem;
+                padding-top: 0.5rem;
             }
-            .sidebar-expand-button {
-                position: fixed;
-                top: 0.85rem;
-                left: 0.85rem;
-                z-index: 9999;
+            .top-nav-shell {
+                background: #FFFFFF;
+                border: 1px solid #D1D9E6;
+                border-radius: 14px;
+                padding: 0.75rem 1rem 0.5rem 1rem;
+                margin: 0.35rem 0 1rem 0;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
             }
-            .sidebar-expand-button button {
-                background: #111827;
-                color: #F9FAFB;
-                border-radius: 8px;
-                border: 1px solid #1F2937;
-                font-weight: 600;
-                padding: 0.35rem 0.7rem;
+            .top-nav-title {
+                color: #334155;
+                font-size: 0.82rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                margin-bottom: 0.35rem;
             }
         </style>
         """,
@@ -137,24 +139,6 @@ def apply_professional_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
-
-
-def render_sidebar_expand_button() -> None:
-    st.markdown('<div class="sidebar-expand-button">', unsafe_allow_html=True)
-    expand_sidebar = st.button("☰ Expand Nav", key="expand_sidebar_button")
-    st.markdown("</div>", unsafe_allow_html=True)
-    if expand_sidebar:
-        st.markdown(
-            """
-            <script>
-                const sidebarToggle = window.parent.document.querySelector('[data-testid="collapsedControl"] button');
-                if (sidebarToggle) {
-                    sidebarToggle.click();
-                }
-            </script>
-            """,
-            unsafe_allow_html=True,
-        )
 
 
 def initialize_state() -> None:
@@ -616,12 +600,10 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     apply_professional_theme()
-    render_sidebar_expand_button()
     pages = ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"]
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", pages)
-    st.caption("If your sidebar is hidden, use the page selector below.")
-    page = st.radio("Page", pages, horizontal=True, index=pages.index(page))
+    st.markdown('<div class="top-nav-shell"><div class="top-nav-title">Navigation</div>', unsafe_allow_html=True)
+    page = st.radio("Page", pages, horizontal=True, label_visibility="collapsed")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if page == "Dashboard":
         render_dashboard()
