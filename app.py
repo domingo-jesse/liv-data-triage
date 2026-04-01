@@ -29,6 +29,7 @@ st.set_page_config(page_title="Liv's Data Triage System", page_icon="📊", layo
 
 @st.cache_data
 def _format_iso(iso_value: str) -> str:
+    # Keep timestamp rendering uniform across tables, badges, and history entries.
     if not iso_value:
         return "-"
     try:
@@ -38,6 +39,7 @@ def _format_iso(iso_value: str) -> str:
 
 
 def apply_professional_theme() -> None:
+    # Inject lightweight CSS overrides to improve readability and visual hierarchy.
     st.markdown(
         """
         <style>
@@ -104,8 +106,10 @@ def apply_professional_theme() -> None:
 
 
 def initialize_state() -> None:
+    # Load persisted data once per session.
     if "data" not in st.session_state:
         st.session_state.data = load_data()
+    # Backfill keys for compatibility with older payload versions.
     st.session_state.data.setdefault("archived_tickets", [])
     if "selected_ticket_id" not in st.session_state:
         st.session_state.selected_ticket_id = None
@@ -114,12 +118,14 @@ def initialize_state() -> None:
 
 
 def persist() -> None:
+    # Single save helper to keep write behavior consistent everywhere.
     save_data(st.session_state.data)
 
 
 def render_dashboard() -> None:
     st.title("Dashboard")
 
+    # Derive aggregate metrics from active tickets only.
     stats = analytics(st.session_state.data)
     completion_rate = (stats["completed"] / stats["total"] * 100) if stats["total"] else 0
     active_rate = (stats["open"] / stats["total"] * 100) if stats["total"] else 0
@@ -153,12 +159,14 @@ def render_dashboard() -> None:
 
 
 def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
+    # Transform dict data into a tabular shape expected by Altair.
     labels = list(counts.keys())
     values = list(counts.values())
     chart_data = pd.DataFrame({label: labels, "count": values})
     lower_label = label.lower()
     color_scale = alt.Scale(scheme="tableau10")
     if lower_label == "urgency":
+        # Use severity-aware urgency colors instead of generic palette.
         color_scale = alt.Scale(
             domain=["Low", "Medium", "High", "Critical"],
             range=["#2E7D32", "#F9A825", "#C62828", "#000000"],
@@ -178,6 +186,7 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
 
 
 def _palette_for_breakdown(kind: str, labels: list[str]) -> dict[str, str]:
+    # Use deterministic color mappings so users can scan quickly across pages.
     if kind == "urgency":
         return {
             "Low": "#2E7D32",
@@ -217,6 +226,7 @@ def render_breakdown(container, title: str, counts: dict[str, int], total: int, 
     color_map = _palette_for_breakdown(kind, [label for label, _ in sorted_counts])
 
     for label, value in sorted_counts:
+        # Show both absolute counts and normalized percentages for context.
         percentage = (value / total * 100) if total else 0
         container.markdown(f"**{label}** · {value} ({percentage:.1f}%)")
         container.markdown(
@@ -232,6 +242,7 @@ def render_breakdown(container, title: str, counts: dict[str, int], total: int, 
 
 
 def _serialize_ticket_for_export(ticket: dict) -> dict[str, str]:
+    # Flatten nested notes/history into newline-delimited text fields for CSV export.
     notes = "\n".join(
         f"{_format_iso(n.get('timestamp', ''))}: {n.get('text', '')}" for n in ticket.get("notes", [])
     )
@@ -258,12 +269,14 @@ def _serialize_ticket_for_export(ticket: dict) -> dict[str, str]:
 
 
 def _build_ticket_csv(tickets: list[dict]) -> bytes:
+    # Export as UTF-8 bytes for Streamlit download button compatibility.
     rows = [_serialize_ticket_for_export(ticket) for ticket in tickets]
     csv_text = pd.DataFrame(rows).to_csv(index=False)
     return csv_text.encode("utf-8")
 
 
 def _parse_timestamp_to_iso(value: str) -> str:
+    # Accept multiple legacy formats from exported files and normalize to ISO.
     text = (value or "").strip()
     if not text:
         return ""
@@ -285,6 +298,7 @@ def _parse_multiline_notes(raw: str) -> list[dict[str, str]]:
         if not text:
             continue
         if ": " in text:
+            # Expected export format: "<timestamp>: <note text>".
             maybe_ts, note_text = text.split(": ", 1)
             notes.append({"timestamp": _parse_timestamp_to_iso(maybe_ts), "text": note_text.strip()})
         else:
@@ -300,6 +314,7 @@ def _parse_multiline_history(raw: str) -> list[dict[str, str]]:
             continue
         parts = [p.strip() for p in text.split(" | ", 2)]
         if len(parts) == 3:
+            # Expected export format: "<timestamp> | <action> | <detail>".
             history.append(
                 {
                     "timestamp": _parse_timestamp_to_iso(parts[0]),
@@ -319,6 +334,7 @@ def _parse_multiline_history(raw: str) -> list[dict[str, str]]:
 
 
 def _import_tickets_from_csv(csv_bytes: bytes) -> tuple[int, int, int]:
+    # Handle BOM-prefixed files from spreadsheet editors like Excel.
     csv_text = csv_bytes.decode("utf-8-sig")
     frame = pd.read_csv(io.StringIO(csv_text)).fillna("")
     if frame.empty:
@@ -333,6 +349,7 @@ def _import_tickets_from_csv(csv_bytes: bytes) -> tuple[int, int, int]:
     failed = 0
 
     for row in frame.to_dict(orient="records"):
+        # Minimal required fields for a valid intake ticket.
         ticket_code = str(row.get("ID", "")).strip()
         title = str(row.get("Title", "")).strip()
         requester = str(row.get("Requester", "")).strip()
@@ -341,6 +358,7 @@ def _import_tickets_from_csv(csv_bytes: bytes) -> tuple[int, int, int]:
             failed += 1
             continue
         if ticket_code and ticket_code in existing_codes:
+            # Preserve idempotency when importing the same backup multiple times.
             skipped += 1
             continue
 
@@ -371,6 +389,7 @@ def _import_tickets_from_csv(csv_bytes: bytes) -> tuple[int, int, int]:
     return (added, skipped, failed)
 
 def render_ticket_queue(filtered_tickets: list[dict], selector_key: str, state_key: str) -> None:
+    # Render a compact table for scanning and a selector for detail drill-down.
     rows = [
         {
             "ID": t["ticket_code"],
@@ -412,6 +431,7 @@ def render_create_ticket_form() -> None:
         submitted = st.form_submit_button("Create Ticket")
 
     if submitted:
+        # Validate required user inputs before creating ticket records.
         if not title.strip() or not requester.strip() or not request_description.strip():
             st.error("Title, requester, and request description are required.")
             return
@@ -428,6 +448,7 @@ def render_create_ticket_form() -> None:
             },
         )
         cache_key = instruction_cache_key(ticket)
+        # Reuse prior AI output for equivalent requests to save latency/cost.
         cached_instructions = st.session_state.data["ai_instruction_cache"].get(cache_key, "")
         if cached_instructions:
             ticket["ai_instructions"] = cached_instructions
@@ -479,6 +500,7 @@ def render_ticket_detail(ticket_id: int | None, archived: bool = False) -> None:
         )
 
     if not archived and new_status != ticket["status"]:
+        # Apply status transitions immediately with an audit trail.
         old = ticket["status"]
         ticket["status"] = new_status
         if new_status == "Completed" and not ticket["completed_at"]:
@@ -489,6 +511,7 @@ def render_ticket_detail(ticket_id: int | None, archived: bool = False) -> None:
         st.success("Status updated.")
 
     if not archived and new_urgency != ticket["urgency"]:
+        # Track urgency changes as first-class operational events.
         old = ticket["urgency"]
         ticket["urgency"] = new_urgency
         log_ticket_history(ticket, "Urgency Updated", f"{old} -> {new_urgency}")
@@ -526,6 +549,7 @@ def render_ticket_detail(ticket_id: int | None, archived: bool = False) -> None:
         disabled=archived,
     ):
         with st.spinner("Generating AI instructions..."):
+            # Cache by normalized ticket content to prevent duplicate generation.
             cached = st.session_state.data["ai_instruction_cache"].get(cache_key, "")
             text = cached or generate_instructions(ticket)
             ticket["ai_instructions"] = text
@@ -608,6 +632,7 @@ def render_ticket_queue_page() -> None:
 
     filtered = apply_filters(st.session_state.data["tickets"], search, status_filter, urgency_filter, category_filter)
 
+    # Primary queue intentionally excludes completed tickets.
     filtered = [t for t in filtered if t.get("status") != "Completed"]
 
     export_col, _ = st.columns([1, 5])
@@ -648,6 +673,7 @@ def confirm_clear_all_data() -> None:
     st.error("Warning: this action is irreversible and will permanently delete all tickets, archive data, and activity history.")
     c1, c2 = st.columns(2)
     if c1.button("Yes, clear everything", type="primary"):
+        # Reset to canonical empty schema so future operations remain safe.
         st.session_state.data = {
             "tickets": [],
             "archived_tickets": [],
@@ -705,6 +731,7 @@ def render_settings_page() -> None:
             persist()
             st.success(f"CSV import complete. Added: {added}, skipped duplicates: {skipped}, failed rows: {failed}.")
         except Exception as exc:
+            # Surface parse/runtime errors to users for quick troubleshooting.
             st.error(f"CSV import failed: {exc}")
 
     st.markdown(
@@ -718,6 +745,7 @@ def render_settings_page() -> None:
 
 
 def main() -> None:
+    # App bootstrap order: load state, style UI, then route to selected page.
     initialize_state()
     apply_professional_theme()
     st.sidebar.title("Navigation")
