@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from datetime import datetime
 
 import altair as alt
@@ -260,6 +261,114 @@ def _build_ticket_csv(tickets: list[dict]) -> bytes:
     rows = [_serialize_ticket_for_export(ticket) for ticket in tickets]
     csv_text = pd.DataFrame(rows).to_csv(index=False)
     return csv_text.encode("utf-8")
+
+
+def _parse_timestamp_to_iso(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return ""
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            return datetime.strptime(text, fmt).isoformat()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).isoformat()
+    except ValueError:
+        return datetime.utcnow().isoformat()
+
+
+def _parse_multiline_notes(raw: str) -> list[dict[str, str]]:
+    notes: list[dict[str, str]] = []
+    for line in str(raw or "").splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        if ": " in text:
+            maybe_ts, note_text = text.split(": ", 1)
+            notes.append({"timestamp": _parse_timestamp_to_iso(maybe_ts), "text": note_text.strip()})
+        else:
+            notes.append({"timestamp": datetime.utcnow().isoformat(), "text": text})
+    return notes
+
+
+def _parse_multiline_history(raw: str) -> list[dict[str, str]]:
+    history: list[dict[str, str]] = []
+    for line in str(raw or "").splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        parts = [p.strip() for p in text.split(" | ", 2)]
+        if len(parts) == 3:
+            history.append(
+                {
+                    "timestamp": _parse_timestamp_to_iso(parts[0]),
+                    "action": parts[1] or "Imported Event",
+                    "detail": parts[2] or "",
+                }
+            )
+        else:
+            history.append(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "action": "Imported Event",
+                    "detail": text,
+                }
+            )
+    return history
+
+
+def _import_tickets_from_csv(csv_bytes: bytes) -> tuple[int, int, int]:
+    csv_text = csv_bytes.decode("utf-8-sig")
+    frame = pd.read_csv(io.StringIO(csv_text)).fillna("")
+    if frame.empty:
+        return (0, 0, 0)
+
+    existing_codes = {
+        t.get("ticket_code", "") for t in (st.session_state.data.get("tickets", []) + st.session_state.data.get("archived_tickets", []))
+    }
+
+    added = 0
+    skipped = 0
+    failed = 0
+
+    for row in frame.to_dict(orient="records"):
+        ticket_code = str(row.get("ID", "")).strip()
+        title = str(row.get("Title", "")).strip()
+        requester = str(row.get("Requester", "")).strip()
+        request_description = str(row.get("Request Description", "")).strip()
+        if not title or not requester or not request_description:
+            failed += 1
+            continue
+        if ticket_code and ticket_code in existing_codes:
+            skipped += 1
+            continue
+
+        ticket_id = st.session_state.data["next_ticket_id"]
+        ticket = {
+            "ticket_id": ticket_id,
+            "ticket_code": ticket_code or f"TKT-{ticket_id:04d}",
+            "title": title,
+            "requester": requester,
+            "department": str(row.get("Department", "")).strip() or "N/A",
+            "created_at": _parse_timestamp_to_iso(str(row.get("Created", ""))) or datetime.utcnow().isoformat(),
+            "urgency": str(row.get("Urgency", "")).strip() if str(row.get("Urgency", "")).strip() in URGENCY_VALUES else "Medium",
+            "status": str(row.get("Status", "")).strip() if str(row.get("Status", "")).strip() in STATUS_VALUES else "New",
+            "category": str(row.get("Category", "")).strip() or "General",
+            "request_description": request_description,
+            "desired_outcome": str(row.get("Desired Outcome", "")).strip() or "N/A",
+            "ai_instructions": str(row.get("AI Work Instructions", "")),
+            "notes": _parse_multiline_notes(str(row.get("Notes / Comments", ""))),
+            "completed_at": _parse_timestamp_to_iso(str(row.get("Completed", ""))),
+            "history": _parse_multiline_history(str(row.get("Activity Log", ""))),
+            "archived_at": "",
+        }
+        st.session_state.data["tickets"].insert(0, ticket)
+        st.session_state.data["next_ticket_id"] += 1
+        added += 1
+        existing_codes.add(ticket["ticket_code"])
+
+    return (added, skipped, failed)
 
 def render_ticket_queue(filtered_tickets: list[dict], selector_key: str, state_key: str) -> None:
     rows = [
@@ -565,6 +674,7 @@ def render_settings_page() -> None:
     st.title("Settings")
     st.info("Set OPENAI_API_KEY in your environment to enable AI instruction generation.")
     st.caption(f"Persistent data file: `{DATA_FILE}`")
+    st.success("Tickets are stored in a user-scoped file, so they persist across app restarts and most code updates/merges.")
     if st.button("Load Demo Ticket"):
         ticket = create_ticket(
             st.session_state.data,
@@ -585,6 +695,19 @@ def render_settings_page() -> None:
     st.divider()
     st.subheader("Data Management")
     st.caption("Use with caution.")
+    uploaded_csv = st.file_uploader(
+        "Bulk upload tickets from exported CSV backup",
+        type=["csv"],
+        help="Upload the same ticket CSV format exported by the app to restore tickets in bulk.",
+    )
+    if uploaded_csv is not None and st.button("Import Tickets from CSV", type="primary"):
+        try:
+            added, skipped, failed = _import_tickets_from_csv(uploaded_csv.getvalue())
+            persist()
+            st.success(f"CSV import complete. Added: {added}, skipped duplicates: {skipped}, failed rows: {failed}.")
+        except Exception as exc:
+            st.error(f"CSV import failed: {exc}")
+
     if st.button("Clear All Data", type="secondary"):
         confirm_clear_all_data()
 
