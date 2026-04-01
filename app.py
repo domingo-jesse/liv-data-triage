@@ -67,9 +67,9 @@ def render_dashboard() -> None:
     with overview_tab:
         st.subheader("Snapshot")
         c4, c5, c6 = st.columns(3)
-        render_breakdown(c4, "By Status", stats["status"], stats["total"])
-        render_breakdown(c5, "By Urgency", stats["urgency"], stats["total"])
-        render_breakdown(c6, "By Category", stats["category"], stats["total"])
+        render_breakdown(c4, "By Status", stats["status"], stats["total"], "status")
+        render_breakdown(c5, "By Urgency", stats["urgency"], stats["total"], "urgency")
+        render_breakdown(c6, "By Category", stats["category"], stats["total"], "category")
 
     with analytics_tab:
         with st.spinner("Loading analytics visuals..."):
@@ -110,16 +110,56 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
     )
 
 
-def render_breakdown(container, title: str, counts: dict[str, int], total: int) -> None:
+def _palette_for_breakdown(kind: str, labels: list[str]) -> dict[str, str]:
+    if kind == "urgency":
+        return {
+            "Low": "#2E7D32",
+            "Medium": "#F9A825",
+            "High": "#C62828",
+            "Critical": "#000000",
+        }
+    if kind == "status":
+        return {
+            "New": "#4C78A8",
+            "In Progress": "#F58518",
+            "Waiting": "#E45756",
+            "Completed": "#72B7B2",
+        }
+    tableau10 = [
+        "#4C78A8",
+        "#F58518",
+        "#E45756",
+        "#72B7B2",
+        "#54A24B",
+        "#EECA3B",
+        "#B279A2",
+        "#FF9DA6",
+        "#9D755D",
+        "#BAB0AC",
+    ]
+    return {label: tableau10[idx % len(tableau10)] for idx, label in enumerate(labels)}
+
+
+def render_breakdown(container, title: str, counts: dict[str, int], total: int, kind: str) -> None:
     container.write(f"**{title}**")
     if not counts:
         container.caption("No data available.")
         return
 
-    for label, value in sorted(counts.items(), key=lambda item: item[1], reverse=True):
+    sorted_counts = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    color_map = _palette_for_breakdown(kind, [label for label, _ in sorted_counts])
+
+    for label, value in sorted_counts:
         percentage = (value / total * 100) if total else 0
         container.markdown(f"**{label}** · {value} ({percentage:.1f}%)")
-        container.progress(min(percentage / 100, 1.0))
+        container.markdown(
+            f"""
+            <div style="background:#E5E7EB;height:10px;border-radius:999px;margin:6px 0 14px 0;">
+                <div style="background:{color_map.get(label, '#4C78A8')};width:{min(percentage, 100):.1f}%;height:10px;border-radius:999px;"></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_ticket_queue(filtered_tickets: list[dict], selector_key: str, state_key: str) -> None:
@@ -366,21 +406,36 @@ def render_ticket_queue_page() -> None:
     render_ticket_detail(st.session_state.selected_ticket_id)
 
 
-def render_archive_page() -> None:
-    st.title("Completed Archive")
-    st.caption("Search and review completed archived tickets. You can restore tickets back into the active queue.")
-    s1, s2, s3 = st.columns(3)
-    search = s1.text_input("Search Archive")
-    urgency_filter = s2.selectbox("Urgency", ["All"] + URGENCY_VALUES, key="archive_urgency_filter")
-    all_categories = sorted({t["category"] for t in st.session_state.data["archived_tickets"]})
-    category_filter = s3.selectbox("Category", ["All"] + all_categories, key="archive_category_filter")
+def render_completed_queue_page() -> None:
+    st.title("Completed Queue")
+    st.caption("Review completed tickets from the active queue and completed archived tickets.")
 
+    active_completed = [t for t in st.session_state.data["tickets"] if t.get("status") == "Completed"]
+    st.subheader("Active Completed Tickets")
+    s1, s2, s3 = st.columns(3)
+    search = s1.text_input("Search Completed Tickets")
+    urgency_filter = s2.selectbox("Urgency", ["All"] + URGENCY_VALUES, key="completed_urgency_filter")
+    all_categories = sorted({t["category"] for t in active_completed})
+    category_filter = s3.selectbox("Category", ["All"] + all_categories, key="completed_category_filter")
+    completed_filtered = apply_filters(active_completed, search, "Completed", urgency_filter, category_filter)
+    render_ticket_queue(completed_filtered, "ticket_selector_completed", "selected_ticket_id")
+    st.divider()
+    render_ticket_detail(st.session_state.selected_ticket_id)
+
+    st.divider()
+    st.subheader("Archived Completed Tickets")
+    st.caption("These were archived from the active queue. Restore them to move them back into an active queue.")
+    s4, s5, s6 = st.columns(3)
+    archive_search = s4.text_input("Search Archived")
+    archive_urgency_filter = s5.selectbox("Urgency", ["All"] + URGENCY_VALUES, key="archive_urgency_filter")
+    archive_categories = sorted({t["category"] for t in st.session_state.data["archived_tickets"]})
+    archive_category_filter = s6.selectbox("Category", ["All"] + archive_categories, key="archive_category_filter")
     archive_filtered = apply_filters(
         st.session_state.data["archived_tickets"],
-        search,
+        archive_search,
         "Completed",
-        urgency_filter,
-        category_filter,
+        archive_urgency_filter,
+        archive_category_filter,
     )
     render_ticket_queue(archive_filtered, "ticket_selector_archive", "selected_archived_ticket_id")
     st.divider()
@@ -417,16 +472,16 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Completed Archive", "Create Ticket Intake", "Settings"])
+    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
     elif page == "Ticket Queue":
         render_ticket_queue_page()
-    elif page == "Completed Archive":
-        render_archive_page()
     elif page == "Create Ticket Intake":
         render_ticket_intake_page()
+    elif page == "Completed Queue":
+        render_completed_queue_page()
     else:
         render_settings_page()
 
