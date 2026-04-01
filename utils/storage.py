@@ -5,14 +5,15 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_DATA_FILE = PROJECT_ROOT / "data" / "tickets.json"
-LEGACY_HOME_DATA_FILE = Path.home() / ".liv_ticketing" / "tickets.json"
+HOME_DATA_FILE = Path.home() / ".liv_ticketing" / "tickets.json"
 
 
 def _resolve_data_file() -> Path:
     configured_path = os.getenv("TICKET_DATA_FILE", "").strip()
     if configured_path:
         return Path(configured_path).expanduser()
-    return PROJECT_DATA_FILE
+    # Default to a user-scoped location so ticket data survives app/repo restarts.
+    return HOME_DATA_FILE
 
 
 DATA_FILE = _resolve_data_file()
@@ -31,10 +32,24 @@ def _default_payload() -> dict[str, Any]:
 
 def ensure_data_file() -> None:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if not DATA_FILE.exists() and LEGACY_HOME_DATA_FILE.exists():
-        DATA_FILE.write_text(LEGACY_HOME_DATA_FILE.read_text(encoding="utf-8"), encoding="utf-8")
-    if not DATA_FILE.exists() and BACKUP_FILE.exists():
-        DATA_FILE.write_text(BACKUP_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+
+    candidate_restore_files: list[Path] = [
+        BACKUP_FILE,
+        PROJECT_DATA_FILE,
+        PROJECT_DATA_FILE.with_suffix(".json.bak"),
+    ]
+    seen: set[Path] = set()
+    for candidate in candidate_restore_files:
+        candidate = candidate.expanduser().resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate == DATA_FILE.resolve():
+            continue
+        if not DATA_FILE.exists() and candidate.exists():
+            DATA_FILE.write_text(candidate.read_text(encoding="utf-8"), encoding="utf-8")
+            break
+
     if not DATA_FILE.exists():
         payload = _default_payload()
         serialized = json.dumps(payload, indent=2)
