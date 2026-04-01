@@ -45,20 +45,36 @@ def persist() -> None:
 
 def render_dashboard() -> None:
     st.title("Dashboard")
+
     stats = analytics(st.session_state.data)
+    completion_rate = (stats["completed"] / stats["total"] * 100) if stats["total"] else 0
+    active_rate = (stats["open"] / stats["total"] * 100) if stats["total"] else 0
+
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Tickets", stats["total"])
-    c2.metric("Open Tickets", stats["open"])
-    c3.metric("Completed Tickets", stats["completed"])
+    c2.metric("Open Tickets", stats["open"], f"{active_rate:.1f}% active")
+    c3.metric("Completed Tickets", stats["completed"], f"{completion_rate:.1f}% completion")
 
-    st.subheader("Snapshot")
-    c4, c5, c6 = st.columns(3)
-    c4.write("**By Status**")
-    c4.json(stats["status"])
-    c5.write("**By Urgency**")
-    c5.json(stats["urgency"])
-    c6.write("**By Category**")
-    c6.json(stats["category"])
+    overview_tab, analytics_tab = st.tabs(["Overview", "Analytics"])
+
+    with overview_tab:
+        st.subheader("Snapshot")
+        c4, c5, c6 = st.columns(3)
+        c4.write("**By Status**")
+        c4.json(stats["status"])
+        c5.write("**By Urgency**")
+        c5.json(stats["urgency"])
+        c6.write("**By Category**")
+        c6.json(stats["category"])
+
+    with analytics_tab:
+        with st.spinner("Loading analytics visuals..."):
+            st.subheader("Counts by Status")
+            st.bar_chart(pd.DataFrame.from_dict(stats["status"], orient="index", columns=["count"]))
+            st.subheader("Counts by Urgency")
+            st.bar_chart(pd.DataFrame.from_dict(stats["urgency"], orient="index", columns=["count"]))
+            st.subheader("Counts by Category")
+            st.bar_chart(pd.DataFrame.from_dict(stats["category"], orient="index", columns=["count"]))
 
 
 def render_ticket_queue(filtered_tickets: list[dict]) -> None:
@@ -256,22 +272,6 @@ def render_ticket_intake_page() -> None:
     st.caption("Use the sidebar to navigate to the Ticket Queue page to review and manage created tickets.")
 
 
-def render_analytics_page() -> None:
-    st.title("Analytics")
-    stats = analytics(st.session_state.data)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total", stats["total"])
-    c2.metric("Open", stats["open"])
-    c3.metric("Completed", stats["completed"])
-
-    st.subheader("Counts by Status")
-    st.bar_chart(pd.DataFrame.from_dict(stats["status"], orient="index", columns=["count"]))
-    st.subheader("Counts by Urgency")
-    st.bar_chart(pd.DataFrame.from_dict(stats["urgency"], orient="index", columns=["count"]))
-    st.subheader("Counts by Category")
-    st.bar_chart(pd.DataFrame.from_dict(stats["category"], orient="index", columns=["count"]))
-
-
 def render_settings_page() -> None:
     st.title("Settings")
     st.info("Set OPENAI_API_KEY in your environment to enable AI instruction generation.")
@@ -296,7 +296,7 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Analytics", "Settings"])
+    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
@@ -304,8 +304,6 @@ def main() -> None:
         render_ticket_queue_page()
     elif page == "Create Ticket Intake":
         render_ticket_intake_page()
-    elif page == "Analytics":
-        render_analytics_page()
     else:
         render_settings_page()
 
