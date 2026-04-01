@@ -694,11 +694,6 @@ def render_settings_page() -> None:
 
     st.divider()
     st.subheader("Data Management")
-    st.markdown(
-        '<p style="color:#DC2626;font-size:1.05rem;font-weight:700;margin:0;">Clear All Data</p>',
-        unsafe_allow_html=True,
-    )
-    st.caption("Use with caution.")
     uploaded_csv = st.file_uploader(
         "Bulk upload tickets from exported CSV backup",
         type=["csv"],
@@ -711,6 +706,12 @@ def render_settings_page() -> None:
             st.success(f"CSV import complete. Added: {added}, skipped duplicates: {skipped}, failed rows: {failed}.")
         except Exception as exc:
             st.error(f"CSV import failed: {exc}")
+
+    st.markdown(
+        '<p style="color:#DC2626;font-size:1.05rem;font-weight:700;margin:0;">Clear All Data</p>',
+        unsafe_allow_html=True,
+    )
+    st.caption("Use with caution.")
 
     if st.button("Clear All Data", type="secondary"):
         confirm_clear_all_data()
