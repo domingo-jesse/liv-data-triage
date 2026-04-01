@@ -584,11 +584,8 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     apply_professional_theme()
-    pages = ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"]
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", pages)
-    st.caption("If your sidebar is hidden, use the page selector below.")
-    page = st.radio("Page", pages, horizontal=True, index=pages.index(page))
+    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
