@@ -23,7 +23,7 @@ from utils.ticket_utils import (
     restore_ticket,
 )
 
-st.set_page_config(page_title="Liv Data Triage System", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Liv's Data Triage System", page_icon="📊", layout="wide")
 
 
 @st.cache_data
@@ -41,8 +41,11 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: #F5F7FA;
+                background:
+                    radial-gradient(circle at 50% 26%, rgba(191, 219, 254, 0.96) 0%, rgba(147, 197, 253, 0.68) 16%, rgba(59, 130, 246, 0.34) 32%, rgba(30, 64, 175, 0.2) 48%, rgba(15, 23, 42, 0) 58%),
+                    linear-gradient(180deg, #1E3A8A 0%, #1D4ED8 46%, #60A5FA 70%, #DBEAFE 100%);
                 color: #0F172A;
+                min-height: 100vh;
             }
             [data-testid="stSidebar"] {
                 background: #111827;
@@ -88,7 +91,7 @@ def apply_professional_theme() -> None:
     st.markdown(
         """
         <div class="main-header">
-            <p class="main-title">Liv Data Triage System</p>
+            <p class="main-title">Liv's Data Triage System</p>
         </div>
         """,
         unsafe_allow_html=True,
