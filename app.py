@@ -408,7 +408,7 @@ def render_ticket_queue_page() -> None:
 
 def render_completed_queue_page() -> None:
     st.title("Completed Queue")
-    st.caption("Review completed tickets from the active queue and completed archived tickets.")
+    st.caption("Review completed tickets from the active queue.")
 
     active_completed = [t for t in st.session_state.data["tickets"] if t.get("status") == "Completed"]
     st.subheader("Active Completed Tickets")
@@ -422,24 +422,26 @@ def render_completed_queue_page() -> None:
     st.divider()
     render_ticket_detail(st.session_state.selected_ticket_id)
 
-    st.divider()
-    st.subheader("Archived Completed Tickets")
-    st.caption("These were archived from the active queue. Restore them to move them back into an active queue.")
-    s4, s5, s6 = st.columns(3)
-    archive_search = s4.text_input("Search Archived")
-    archive_urgency_filter = s5.selectbox("Urgency", ["All"] + URGENCY_VALUES, key="archive_urgency_filter")
-    archive_categories = sorted({t["category"] for t in st.session_state.data["archived_tickets"]})
-    archive_category_filter = s6.selectbox("Category", ["All"] + archive_categories, key="archive_category_filter")
-    archive_filtered = apply_filters(
-        st.session_state.data["archived_tickets"],
-        archive_search,
-        "Completed",
-        archive_urgency_filter,
-        archive_category_filter,
-    )
-    render_ticket_queue(archive_filtered, "ticket_selector_archive", "selected_archived_ticket_id")
-    st.divider()
-    render_ticket_detail(st.session_state.selected_archived_ticket_id, archived=True)
+
+@st.dialog("Clear all data?")
+def confirm_clear_all_data() -> None:
+    st.error("Warning: this action is irreversible and will permanently delete all tickets, archive data, and activity history.")
+    c1, c2 = st.columns(2)
+    if c1.button("Yes, clear everything", type="primary"):
+        st.session_state.data = {
+            "tickets": [],
+            "archived_tickets": [],
+            "activity_log": [],
+            "next_ticket_id": 1,
+            "ai_instruction_cache": {},
+        }
+        st.session_state.selected_ticket_id = None
+        st.session_state.selected_archived_ticket_id = None
+        persist()
+        st.success("All app data has been cleared.")
+        st.rerun()
+    if c2.button("No, keep data"):
+        st.rerun()
 
 
 def render_ticket_intake_page() -> None:
@@ -467,6 +469,12 @@ def render_settings_page() -> None:
         st.session_state.selected_ticket_id = ticket["ticket_id"]
         persist()
         st.success("Demo ticket loaded.")
+
+    st.divider()
+    st.subheader("Data Management")
+    st.caption("Use with caution.")
+    if st.button("Clear All Data", type="secondary"):
+        confirm_clear_all_data()
 
 
 def main() -> None:
