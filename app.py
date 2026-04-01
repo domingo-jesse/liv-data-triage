@@ -23,7 +23,7 @@ from utils.ticket_utils import (
     restore_ticket,
 )
 
-st.set_page_config(page_title="Liv's Data Triage System", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Liv's Data Triage System", page_icon="📊", layout="wide")
 
 
 @st.cache_data
@@ -41,10 +41,9 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: #EEF5FF;
+                background: #dbe7d4;
                 color: #0F172A;
                 min-height: 100vh;
-                font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             }
             header[data-testid="stHeader"] {
                 display: none;
@@ -60,12 +59,12 @@ def apply_professional_theme() -> None:
                 color: #E5E7EB !important;
             }
             .main-title {
-                font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-                font-size: 2.8rem;
+                font-family: "Comic Sans MS", "Trebuchet MS", "Marker Felt", cursive;
+                font-size: 2rem;
                 font-weight: 800;
                 margin: 0;
-                color: #0F172A;
-                letter-spacing: 0.01em;
+                color: #243a2f;
+                letter-spacing: 0.02em;
             }
             .stButton>button[kind="primary"] {
                 background: #0F172A;
@@ -79,13 +78,6 @@ def apply_professional_theme() -> None:
             }
             .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
                 border-radius: 10px;
-            }
-            .analytics-card {
-                border: 1px solid #CBD5E1;
-                border-radius: 14px;
-                padding: 12px 12px 4px 12px;
-                background: #F8FBFF;
-                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
             }
             .block-container {
                 padding-top: 0.2rem;
@@ -141,20 +133,14 @@ def render_dashboard() -> None:
         with st.spinner("Loading analytics visuals..."):
             c7, c8, c9 = st.columns(3)
             with c7:
-                st.markdown('<div class="analytics-card">', unsafe_allow_html=True)
                 st.subheader("Counts by Status")
                 st.altair_chart(make_count_chart(stats["status"], "Status"), use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
             with c8:
-                st.markdown('<div class="analytics-card">', unsafe_allow_html=True)
                 st.subheader("Counts by Urgency")
                 st.altair_chart(make_count_chart(stats["urgency"], "Urgency"), use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
             with c9:
-                st.markdown('<div class="analytics-card">', unsafe_allow_html=True)
                 st.subheader("Counts by Category")
                 st.altair_chart(make_count_chart(stats["category"], "Category"), use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
 
 
 def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
@@ -169,9 +155,9 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
             range=["#2E7D32", "#F9A825", "#C62828", "#000000"],
         )
 
-    base_chart = (
+    return (
         alt.Chart(chart_data)
-        .mark_bar(cornerRadius=6, stroke="#94A3B8", strokeWidth=0.8)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
         .encode(
             x=alt.X(f"{label}:N", title=label, sort=labels),
             y=alt.Y("count:Q", title="Count"),
@@ -180,14 +166,6 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
         )
         .properties(height=260)
     )
-    count_labels = base_chart.mark_text(
-        align="center",
-        baseline="bottom",
-        dy=-4,
-        color="#0F172A",
-        fontWeight="bold",
-    ).encode(text=alt.Text("count:Q", title="Tickets"))
-    return base_chart + count_labels
 
 
 def _palette_for_breakdown(kind: str, labels: list[str]) -> dict[str, str]:
