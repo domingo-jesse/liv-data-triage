@@ -15,6 +15,7 @@ from utils.ticket_utils import (
     apply_filters,
     create_ticket,
     find_ticket,
+    instruction_cache_key,
     log_ticket_history,
 )
 
@@ -117,9 +118,23 @@ def render_create_ticket_form() -> None:
                 "desired_outcome": desired_outcome.strip() or "N/A",
             },
         )
+        cache_key = instruction_cache_key(ticket)
+        cached_instructions = st.session_state.data["ai_instruction_cache"].get(cache_key, "")
+        if cached_instructions:
+            ticket["ai_instructions"] = cached_instructions
+            log_ticket_history(ticket, "AI Instructions Loaded", "Loaded from saved instruction cache")
+            add_activity(
+                st.session_state.data,
+                ticket["ticket_id"],
+                "ai_instructions_loaded",
+                f"{ticket['ticket_code']}: AI instructions loaded from cache",
+            )
         st.session_state.selected_ticket_id = ticket["ticket_id"]
         persist()
-        st.success(f"Ticket {ticket['ticket_code']} created.")
+        if cached_instructions:
+            st.success(f"Ticket {ticket['ticket_code']} created with saved AI work instructions.")
+        else:
+            st.success(f"Ticket {ticket['ticket_code']} created.")
 
 
 def render_ticket_detail() -> None:
@@ -183,14 +198,31 @@ def render_ticket_detail() -> None:
 
     st.divider()
     st.write("### AI Work Instructions")
+    cache_key = instruction_cache_key(ticket)
     if st.button("Generate Instructions", type="primary", key=f"gen_ai_{ticket['ticket_id']}"):
         with st.spinner("Generating AI instructions..."):
-            text = generate_instructions(ticket)
+            cached = st.session_state.data["ai_instruction_cache"].get(cache_key, "")
+            text = cached or generate_instructions(ticket)
             ticket["ai_instructions"] = text
-            log_ticket_history(ticket, "AI Instructions Generated", "Instructions generated/refreshed")
-            add_activity(st.session_state.data, ticket["ticket_id"], "ai_instructions_generated", f"{ticket['ticket_code']}: AI instructions generated")
+            st.session_state.data["ai_instruction_cache"][cache_key] = text
+            if cached:
+                log_ticket_history(ticket, "AI Instructions Loaded", "Loaded from saved instruction cache")
+                add_activity(
+                    st.session_state.data,
+                    ticket["ticket_id"],
+                    "ai_instructions_loaded",
+                    f"{ticket['ticket_code']}: AI instructions loaded from cache",
+                )
+            else:
+                log_ticket_history(ticket, "AI Instructions Generated", "Instructions generated/refreshed")
+                add_activity(
+                    st.session_state.data,
+                    ticket["ticket_id"],
+                    "ai_instructions_generated",
+                    f"{ticket['ticket_code']}: AI instructions generated",
+                )
             persist()
-            st.success("Instructions generated.")
+            st.success("Instructions ready and saved.")
 
     if ticket["ai_instructions"]:
         st.markdown(ticket["ai_instructions"])
