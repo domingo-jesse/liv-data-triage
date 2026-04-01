@@ -197,7 +197,7 @@ def render_ticket_detail() -> None:
     else:
         st.info("No AI instructions yet. Click Generate Instructions.")
 
-    with st.expander("Ticket Activity History"):
+    with st.expander("Activity Log"):
         for item in ticket["history"]:
             st.write(f"- {_format_iso(item['timestamp'])} | **{item['action']}** — {item['detail']}")
 
@@ -222,13 +222,6 @@ def render_tickets_page() -> None:
 
     st.divider()
     render_ticket_detail()
-
-
-def render_activity_page() -> None:
-    st.title("Activity Log")
-    for entry in st.session_state.data["activity_log"][:200]:
-        ticket_ref = entry["ticket_id"] if entry["ticket_id"] else "System"
-        st.write(f"- {_format_iso(entry['timestamp'])} | Ticket: {ticket_ref} | **{entry['action']}** — {entry['detail']}")
 
 
 def render_analytics_page() -> None:
@@ -271,7 +264,7 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Tickets", "Analytics", "Activity Log", "Settings"])
+    page = st.sidebar.radio("Go to", ["Dashboard", "Tickets", "Analytics", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
@@ -279,8 +272,6 @@ def main() -> None:
         render_tickets_page()
     elif page == "Analytics":
         render_analytics_page()
-    elif page == "Activity Log":
-        render_activity_page()
     else:
         render_settings_page()
 
