@@ -14,10 +14,13 @@ from utils.ticket_utils import (
     add_activity,
     analytics,
     apply_filters,
+    archive_ticket,
     create_ticket,
+    delete_ticket_forever,
     find_ticket,
     instruction_cache_key,
     log_ticket_history,
+    restore_ticket,
 )
 
 st.set_page_config(page_title="AI Ticketing System", page_icon="🎫", layout="wide")
@@ -36,8 +39,11 @@ def _format_iso(iso_value: str) -> str:
 def initialize_state() -> None:
     if "data" not in st.session_state:
         st.session_state.data = load_data()
+    st.session_state.data.setdefault("archived_tickets", [])
     if "selected_ticket_id" not in st.session_state:
         st.session_state.selected_ticket_id = None
+    if "selected_archived_ticket_id" not in st.session_state:
+        st.session_state.selected_archived_ticket_id = None
 
 
 def persist() -> None:
@@ -87,8 +93,8 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
     color_scale = alt.Scale(scheme="tableau10")
     if lower_label == "urgency":
         color_scale = alt.Scale(
-            domain=["Low", "Medium", "High"],
-            range=["#2E7D32", "#F9A825", "#C62828"],
+            domain=["Low", "Medium", "High", "Critical"],
+            range=["#2E7D32", "#F9A825", "#C62828", "#000000"],
         )
 
     return (
@@ -116,7 +122,7 @@ def render_breakdown(container, title: str, counts: dict[str, int], total: int) 
         container.progress(min(percentage / 100, 1.0))
 
 
-def render_ticket_queue(filtered_tickets: list[dict]) -> None:
+def render_ticket_queue(filtered_tickets: list[dict], selector_key: str, state_key: str) -> None:
     rows = [
         {
             "ID": t["ticket_code"],
@@ -135,11 +141,11 @@ def render_ticket_queue(filtered_tickets: list[dict]) -> None:
     if not options:
         st.info("No tickets found for current filters.")
         return
-    selected = st.selectbox("Open Ticket", options, key="ticket_selector")
+    selected = st.selectbox("Open Ticket", options, key=selector_key)
     selected_code = selected.split(" | ")[0]
     for t in filtered_tickets:
         if t["ticket_code"] == selected_code:
-            st.session_state.selected_ticket_id = t["ticket_id"]
+            st.session_state[state_key] = t["ticket_id"]
             break
 
 
@@ -192,13 +198,12 @@ def render_create_ticket_form() -> None:
             st.success(f"Ticket {ticket['ticket_code']} created.")
 
 
-def render_ticket_detail() -> None:
-    ticket_id = st.session_state.selected_ticket_id
+def render_ticket_detail(ticket_id: int | None, archived: bool = False) -> None:
     if ticket_id is None:
         st.info("Select a ticket from the queue to view details.")
         return
 
-    ticket = find_ticket(st.session_state.data, ticket_id)
+    ticket = find_ticket(st.session_state.data, ticket_id, include_archived=archived)
     if not ticket:
         st.warning("Selected ticket no longer exists.")
         return
@@ -209,11 +214,23 @@ def render_ticket_detail() -> None:
 
     c1, c2 = st.columns(2)
     with c1:
-        new_status = st.selectbox("Status", STATUS_VALUES, index=STATUS_VALUES.index(ticket["status"]))
+        new_status = st.selectbox(
+            "Status",
+            STATUS_VALUES,
+            index=STATUS_VALUES.index(ticket["status"]),
+            disabled=archived,
+            key=f"status_{ticket['ticket_id']}_{'archive' if archived else 'active'}",
+        )
     with c2:
-        new_urgency = st.selectbox("Urgency", URGENCY_VALUES, index=URGENCY_VALUES.index(ticket["urgency"]))
+        new_urgency = st.selectbox(
+            "Urgency",
+            URGENCY_VALUES,
+            index=URGENCY_VALUES.index(ticket["urgency"]),
+            disabled=archived,
+            key=f"urgency_{ticket['ticket_id']}_{'archive' if archived else 'active'}",
+        )
 
-    if new_status != ticket["status"]:
+    if not archived and new_status != ticket["status"]:
         old = ticket["status"]
         ticket["status"] = new_status
         if new_status == "Completed" and not ticket["completed_at"]:
@@ -223,7 +240,7 @@ def render_ticket_detail() -> None:
         persist()
         st.success("Status updated.")
 
-    if new_urgency != ticket["urgency"]:
+    if not archived and new_urgency != ticket["urgency"]:
         old = ticket["urgency"]
         ticket["urgency"] = new_urgency
         log_ticket_history(ticket, "Urgency Updated", f"{old} -> {new_urgency}")
@@ -237,8 +254,8 @@ def render_ticket_detail() -> None:
     st.write(ticket["desired_outcome"])
 
     st.write("**Notes / Comments**")
-    note = st.text_area("Add note", key=f"note_{ticket['ticket_id']}")
-    if st.button("Add Note", key=f"add_note_{ticket['ticket_id']}"):
+    note = st.text_area("Add note", key=f"note_{ticket['ticket_id']}_{'archive' if archived else 'active'}")
+    if st.button("Add Note", key=f"add_note_{ticket['ticket_id']}_{'archive' if archived else 'active'}", disabled=archived):
         if note.strip():
             ticket["notes"].insert(0, {"timestamp": datetime.utcnow().isoformat(), "text": note.strip()})
             log_ticket_history(ticket, "Note Added", note.strip())
@@ -254,7 +271,12 @@ def render_ticket_detail() -> None:
     st.divider()
     st.write("### AI Work Instructions")
     cache_key = instruction_cache_key(ticket)
-    if st.button("Generate Instructions", type="primary", key=f"gen_ai_{ticket['ticket_id']}"):
+    if st.button(
+        "Generate Instructions",
+        type="primary",
+        key=f"gen_ai_{ticket['ticket_id']}_{'archive' if archived else 'active'}",
+        disabled=archived,
+    ):
         with st.spinner("Generating AI instructions..."):
             cached = st.session_state.data["ai_instruction_cache"].get(cache_key, "")
             text = cached or generate_instructions(ticket)
@@ -288,6 +310,44 @@ def render_ticket_detail() -> None:
         for item in ticket["history"]:
             st.write(f"- {_format_iso(item['timestamp'])} | **{item['action']}** — {item['detail']}")
 
+    st.divider()
+    action_cols = st.columns([1, 1, 2])
+    if archived:
+        if action_cols[0].button("Restore Ticket", key=f"restore_{ticket['ticket_id']}"):
+            restored = restore_ticket(st.session_state.data, ticket["ticket_id"])
+            if restored:
+                st.session_state.selected_archived_ticket_id = None
+                st.session_state.selected_ticket_id = restored["ticket_id"]
+                persist()
+                st.success(f"{restored['ticket_code']} restored to active queue.")
+                st.rerun()
+        if action_cols[1].button("Delete Forever", key=f"delete_archived_{ticket['ticket_id']}"):
+            removed = delete_ticket_forever(st.session_state.data, ticket["ticket_id"])
+            if removed:
+                st.session_state.selected_archived_ticket_id = None
+                persist()
+                st.success(f"{removed['ticket_code']} deleted permanently.")
+                st.rerun()
+    else:
+        if action_cols[0].button("Archive Completed Ticket", key=f"archive_{ticket['ticket_id']}"):
+            if ticket["status"] != "Completed":
+                st.warning("Only completed tickets can be archived.")
+            else:
+                archived_ticket = archive_ticket(st.session_state.data, ticket["ticket_id"])
+                if archived_ticket:
+                    st.session_state.selected_ticket_id = None
+                    st.session_state.selected_archived_ticket_id = archived_ticket["ticket_id"]
+                    persist()
+                    st.success(f"{archived_ticket['ticket_code']} moved to archive.")
+                    st.rerun()
+        if action_cols[1].button("Delete Forever", key=f"delete_active_{ticket['ticket_id']}"):
+            removed = delete_ticket_forever(st.session_state.data, ticket["ticket_id"])
+            if removed:
+                st.session_state.selected_ticket_id = None
+                persist()
+                st.success(f"{removed['ticket_code']} deleted permanently.")
+                st.rerun()
+
 
 def render_ticket_queue_page() -> None:
     st.title("Ticket Queue")
@@ -300,9 +360,31 @@ def render_ticket_queue_page() -> None:
 
     filtered = apply_filters(st.session_state.data["tickets"], search, status_filter, urgency_filter, category_filter)
 
-    render_ticket_queue(filtered)
+    filtered = [t for t in filtered if t.get("status") != "Completed"]
+    render_ticket_queue(filtered, "ticket_selector_active", "selected_ticket_id")
     st.divider()
-    render_ticket_detail()
+    render_ticket_detail(st.session_state.selected_ticket_id)
+
+
+def render_archive_page() -> None:
+    st.title("Completed Archive")
+    st.caption("Search and review completed archived tickets. You can restore tickets back into the active queue.")
+    s1, s2, s3 = st.columns(3)
+    search = s1.text_input("Search Archive")
+    urgency_filter = s2.selectbox("Urgency", ["All"] + URGENCY_VALUES, key="archive_urgency_filter")
+    all_categories = sorted({t["category"] for t in st.session_state.data["archived_tickets"]})
+    category_filter = s3.selectbox("Category", ["All"] + all_categories, key="archive_category_filter")
+
+    archive_filtered = apply_filters(
+        st.session_state.data["archived_tickets"],
+        search,
+        "Completed",
+        urgency_filter,
+        category_filter,
+    )
+    render_ticket_queue(archive_filtered, "ticket_selector_archive", "selected_archived_ticket_id")
+    st.divider()
+    render_ticket_detail(st.session_state.selected_archived_ticket_id, archived=True)
 
 
 def render_ticket_intake_page() -> None:
@@ -335,12 +417,14 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Settings"])
+    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Completed Archive", "Create Ticket Intake", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
     elif page == "Ticket Queue":
         render_ticket_queue_page()
+    elif page == "Completed Archive":
+        render_archive_page()
     elif page == "Create Ticket Intake":
         render_ticket_intake_page()
     else:

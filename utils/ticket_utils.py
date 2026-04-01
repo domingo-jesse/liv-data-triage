@@ -57,6 +57,7 @@ def create_ticket(data: dict[str, Any], form: dict[str, str]) -> dict[str, Any]:
         "notes": [],
         "completed_at": "",
         "history": [],
+        "archived_at": "",
     }
     data["tickets"].insert(0, ticket)
     data["next_ticket_id"] += 1
@@ -69,11 +70,54 @@ def log_ticket_history(ticket: dict[str, Any], action: str, detail: str) -> None
     ticket["history"].insert(0, {"timestamp": now_iso(), "action": action, "detail": detail})
 
 
-def find_ticket(data: dict[str, Any], ticket_id: int) -> dict[str, Any] | None:
-    for t in data["tickets"]:
+def find_ticket(data: dict[str, Any], ticket_id: int, include_archived: bool = False) -> dict[str, Any] | None:
+    for t in data.get("tickets", []):
         if t["ticket_id"] == ticket_id:
             return t
+    if include_archived:
+        for t in data.get("archived_tickets", []):
+            if t["ticket_id"] == ticket_id:
+                return t
     return None
+
+
+def archive_ticket(data: dict[str, Any], ticket_id: int) -> dict[str, Any] | None:
+    ticket = find_ticket(data, ticket_id)
+    if not ticket:
+        return None
+    data["tickets"] = [t for t in data["tickets"] if t["ticket_id"] != ticket_id]
+    ticket["archived_at"] = now_iso()
+    data["archived_tickets"].insert(0, ticket)
+    log_ticket_history(ticket, "Ticket Archived", "Moved from active queue to archive")
+    add_activity(data, ticket_id, "ticket_archived", f"{ticket['ticket_code']} archived")
+    return ticket
+
+
+def restore_ticket(data: dict[str, Any], ticket_id: int) -> dict[str, Any] | None:
+    archived = data.get("archived_tickets", [])
+    ticket = None
+    for t in archived:
+        if t["ticket_id"] == ticket_id:
+            ticket = t
+            break
+    if not ticket:
+        return None
+    data["archived_tickets"] = [t for t in archived if t["ticket_id"] != ticket_id]
+    ticket["archived_at"] = ""
+    data["tickets"].insert(0, ticket)
+    log_ticket_history(ticket, "Ticket Restored", "Returned from archive to active queue")
+    add_activity(data, ticket_id, "ticket_restored", f"{ticket['ticket_code']} restored from archive")
+    return ticket
+
+
+def delete_ticket_forever(data: dict[str, Any], ticket_id: int) -> dict[str, Any] | None:
+    ticket = find_ticket(data, ticket_id, include_archived=True)
+    if not ticket:
+        return None
+    data["tickets"] = [t for t in data.get("tickets", []) if t["ticket_id"] != ticket_id]
+    data["archived_tickets"] = [t for t in data.get("archived_tickets", []) if t["ticket_id"] != ticket_id]
+    add_activity(data, ticket_id, "ticket_deleted_forever", f"{ticket['ticket_code']} permanently deleted")
+    return ticket
 
 
 def apply_filters(
