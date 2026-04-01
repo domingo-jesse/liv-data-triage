@@ -113,21 +113,24 @@ def apply_professional_theme() -> None:
             .block-container {
                 padding-top: 0.5rem;
             }
-            .top-nav-shell {
-                background: #FFFFFF;
-                border: 1px solid #D1D9E6;
-                border-radius: 14px;
-                padding: 0.75rem 1rem 0.5rem 1rem;
-                margin: 0.35rem 0 1rem 0;
-                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-            }
-            .top-nav-title {
-                color: #334155;
-                font-size: 0.82rem;
+            .sidebar-nav-title {
+                font-size: 0.80rem;
                 font-weight: 700;
-                letter-spacing: 0.04em;
+                letter-spacing: 0.06em;
                 text-transform: uppercase;
+                color: #9CA3AF;
+                margin-top: 0.25rem;
                 margin-bottom: 0.35rem;
+            }
+            [data-testid="stSidebar"] .stRadio > div {
+                gap: 0.3rem;
+            }
+            [data-testid="stSidebar"] .stRadio label {
+                width: 100%;
+                border: 1px solid #374151;
+                border-radius: 10px;
+                padding: 0.35rem 0.55rem;
+                background: #111827;
             }
         </style>
         """,
@@ -601,9 +604,13 @@ def main() -> None:
     initialize_state()
     apply_professional_theme()
     pages = ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"]
-    st.markdown('<div class="top-nav-shell"><div class="top-nav-title">Navigation</div>', unsafe_allow_html=True)
-    page = st.radio("Page", pages, horizontal=True, label_visibility="collapsed")
-    st.markdown("</div>", unsafe_allow_html=True)
+
+    with st.sidebar:
+        st.markdown("## Navigation")
+        st.markdown('<div class="sidebar-nav-title">Pages</div>', unsafe_allow_html=True)
+        page = st.radio("Page", pages, label_visibility="collapsed")
+        st.divider()
+        st.caption("Liv's Data Triage System")
 
     if page == "Dashboard":
         render_dashboard()
