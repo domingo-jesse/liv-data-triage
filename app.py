@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from services.openai_service import generate_instructions
-from utils.storage import load_data, save_data
+from utils.storage import DATA_FILE, load_data, save_data
 from utils.ticket_utils import (
     STATUS_VALUES,
     URGENCY_VALUES,
@@ -34,6 +34,64 @@ def _format_iso(iso_value: str) -> str:
         return datetime.fromisoformat(iso_value.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
     except ValueError:
         return iso_value
+
+
+def apply_professional_theme() -> None:
+    st.markdown(
+        """
+        <style>
+            .stApp {
+                background: radial-gradient(circle at top right, #E0EAFF 0%, #F7F9FF 35%, #FFFFFF 100%);
+            }
+            [data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+            }
+            [data-testid="stSidebar"] * {
+                color: #E2E8F0 !important;
+            }
+            .hero-banner {
+                border-radius: 18px;
+                padding: 1rem 1.25rem;
+                margin: 0.5rem 0 1.25rem 0;
+                color: white;
+                background: linear-gradient(120deg, #0EA5E9 0%, #2563EB 40%, #4F46E5 100%);
+                box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
+            }
+            .hero-title {
+                font-size: 1.2rem;
+                font-weight: 700;
+                margin: 0;
+            }
+            .hero-subtitle {
+                margin: 0.25rem 0 0 0;
+                opacity: 0.95;
+                font-size: 0.94rem;
+            }
+            .stButton>button[kind="primary"] {
+                background: linear-gradient(90deg, #2563EB, #4F46E5);
+                border: none;
+                border-radius: 10px;
+                color: white;
+            }
+            .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
+                border-radius: 10px;
+            }
+            .block-container {
+                padding-top: 1.2rem;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="hero-banner">
+            <p class="hero-title">🎫 AI Ticketing System</p>
+            <p class="hero-subtitle">Durable ticket persistence + polished operations dashboard</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def initialize_state() -> None:
@@ -453,6 +511,7 @@ def render_ticket_intake_page() -> None:
 def render_settings_page() -> None:
     st.title("Settings")
     st.info("Set OPENAI_API_KEY in your environment to enable AI instruction generation.")
+    st.caption(f"Persistent data file: `{DATA_FILE}`")
     if st.button("Load Demo Ticket"):
         ticket = create_ticket(
             st.session_state.data,
@@ -479,6 +538,7 @@ def render_settings_page() -> None:
 
 def main() -> None:
     initialize_state()
+    apply_professional_theme()
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"])
 
