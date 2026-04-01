@@ -41,7 +41,7 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: #F3F6FB;
+                background: #EEF5FF;
                 color: #0F172A;
                 min-height: 100vh;
                 font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -77,27 +77,14 @@ def apply_professional_theme() -> None:
                 border-radius: 10px;
                 border: 1px solid #CBD5E1;
             }
-            .stDataFrame {
+            .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
                 border-radius: 10px;
-            }
-            div[data-baseweb="select"] > div,
-            div[data-baseweb="input"] > div {
-                background: #FFFFFF !important;
-                border: 1px solid #CBD5E1 !important;
-                color: #0F172A !important;
-            }
-            div[data-baseweb="select"] input,
-            div[data-baseweb="input"] input,
-            div[data-baseweb="select"] span,
-            div[data-baseweb="input"] span,
-            textarea {
-                color: #0F172A !important;
             }
             .analytics-card {
                 border: 1px solid #CBD5E1;
                 border-radius: 14px;
                 padding: 12px 12px 4px 12px;
-                background: #FFFFFF;
+                background: #F8FBFF;
                 box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
             }
             .block-container {
