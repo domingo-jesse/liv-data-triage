@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -66,12 +67,41 @@ def render_dashboard() -> None:
 
     with analytics_tab:
         with st.spinner("Loading analytics visuals..."):
-            st.subheader("Counts by Status")
-            st.bar_chart(pd.DataFrame.from_dict(stats["status"], orient="index", columns=["count"]))
-            st.subheader("Counts by Urgency")
-            st.bar_chart(pd.DataFrame.from_dict(stats["urgency"], orient="index", columns=["count"]))
-            st.subheader("Counts by Category")
-            st.bar_chart(pd.DataFrame.from_dict(stats["category"], orient="index", columns=["count"]))
+            c7, c8, c9 = st.columns(3)
+            with c7:
+                st.subheader("Counts by Status")
+                st.altair_chart(make_count_chart(stats["status"], "Status"), use_container_width=True)
+            with c8:
+                st.subheader("Counts by Urgency")
+                st.altair_chart(make_count_chart(stats["urgency"], "Urgency"), use_container_width=True)
+            with c9:
+                st.subheader("Counts by Category")
+                st.altair_chart(make_count_chart(stats["category"], "Category"), use_container_width=True)
+
+
+def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
+    labels = list(counts.keys())
+    values = list(counts.values())
+    chart_data = pd.DataFrame({label: labels, "count": values})
+    lower_label = label.lower()
+    color_scale = alt.Scale(scheme="tableau10")
+    if lower_label == "urgency":
+        color_scale = alt.Scale(
+            domain=["Low", "Medium", "High"],
+            range=["#2E7D32", "#F9A825", "#C62828"],
+        )
+
+    return (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X(f"{label}:N", title=label, sort=labels),
+            y=alt.Y("count:Q", title="Count"),
+            color=alt.Color(f"{label}:N", scale=color_scale, legend=None),
+            tooltip=[alt.Tooltip(f"{label}:N"), alt.Tooltip("count:Q", title="Count")],
+        )
+        .properties(height=260)
+    )
 
 
 def render_breakdown(container, title: str, counts: dict[str, int], total: int) -> None:
