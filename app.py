@@ -23,7 +23,7 @@ from utils.ticket_utils import (
     restore_ticket,
 )
 
-st.set_page_config(page_title="AI Ticketing System", page_icon="🎫", layout="wide")
+st.set_page_config(page_title="Liv's Data Triage System", page_icon="🎫", layout="wide")
 
 
 @st.cache_data
@@ -41,37 +41,28 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: radial-gradient(circle at top right, #E0EAFF 0%, #F7F9FF 35%, #FFFFFF 100%);
+                background: #F8FAFC;
             }
             [data-testid="stSidebar"] {
-                background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+                background: #111827;
             }
             [data-testid="stSidebar"] * {
                 color: #E2E8F0 !important;
             }
-            .hero-banner {
-                border-radius: 18px;
-                padding: 1rem 1.25rem;
-                margin: 0.5rem 0 1.25rem 0;
-                color: white;
-                background: linear-gradient(120deg, #0EA5E9 0%, #2563EB 40%, #4F46E5 100%);
-                box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
-            }
-            .hero-title {
-                font-size: 1.2rem;
-                font-weight: 700;
-                margin: 0;
-            }
-            .hero-subtitle {
-                margin: 0.25rem 0 0 0;
-                opacity: 0.95;
-                font-size: 0.94rem;
+            .stMetric {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 12px;
+                padding: 0.4rem 0.7rem;
             }
             .stButton>button[kind="primary"] {
-                background: linear-gradient(90deg, #2563EB, #4F46E5);
-                border: none;
+                background: #111827;
+                border: 1px solid #111827;
                 border-radius: 10px;
                 color: white;
+            }
+            .stButton>button[kind="secondary"] {
+                border-radius: 10px;
             }
             .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
                 border-radius: 10px;
@@ -79,16 +70,14 @@ def apply_professional_theme() -> None:
             .block-container {
                 padding-top: 1.2rem;
             }
+            .section-card {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 0.8rem 1rem;
+                margin: 0.4rem 0 1rem 0;
+            }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        """
-        <div class="hero-banner">
-            <p class="hero-title">🎫 AI Ticketing System</p>
-            <p class="hero-subtitle">Durable ticket persistence + polished operations dashboard</p>
-        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -109,7 +98,8 @@ def persist() -> None:
 
 
 def render_dashboard() -> None:
-    st.title("Dashboard")
+    st.title("Liv's Data Triage System")
+    st.caption("Clean, focused workflow for queue triage and operational insights.")
 
     stats = analytics(st.session_state.data)
     completion_rate = (stats["completed"] / stats["total"] * 100) if stats["total"] else 0
@@ -120,7 +110,7 @@ def render_dashboard() -> None:
     c2.metric("Open Tickets", stats["open"], f"{active_rate:.1f}% active")
     c3.metric("Completed Tickets", stats["completed"], f"{completion_rate:.1f}% completion")
 
-    overview_tab, analytics_tab = st.tabs(["Overview", "Analytics"])
+    overview_tab, analytics_tab = st.tabs(["Overview", "Dynamic Analytics"])
 
     with overview_tab:
         st.subheader("Snapshot")
@@ -130,17 +120,27 @@ def render_dashboard() -> None:
         render_breakdown(c6, "By Category", stats["category"], stats["total"], "category")
 
     with analytics_tab:
-        with st.spinner("Loading analytics visuals..."):
-            c7, c8, c9 = st.columns(3)
-            with c7:
-                st.subheader("Counts by Status")
-                st.altair_chart(make_count_chart(stats["status"], "Status"), use_container_width=True)
-            with c8:
-                st.subheader("Counts by Urgency")
-                st.altair_chart(make_count_chart(stats["urgency"], "Urgency"), use_container_width=True)
-            with c9:
-                st.subheader("Counts by Category")
-                st.altair_chart(make_count_chart(stats["category"], "Category"), use_container_width=True)
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("Dynamic Chart Studio")
+        c7, c8, c9, c10 = st.columns(4)
+        metric_choice = c7.selectbox("Locate chart by metric", ["Status", "Urgency", "Category"])
+        chart_type = c8.selectbox("Chart Type", ["Bar", "Donut"])
+        sort_order = c9.selectbox("Sort", ["Descending by Count", "Alphabetical"])
+        top_n = c10.slider("Top Items", min_value=3, max_value=12, value=8)
+
+        counts_map = {
+            "Status": stats["status"],
+            "Urgency": stats["urgency"],
+            "Category": stats["category"],
+        }
+        selected_counts = counts_map[metric_choice]
+
+        with st.spinner("Refreshing chart..."):
+            st.altair_chart(
+                make_dynamic_chart(selected_counts, metric_choice, chart_type, sort_order, top_n),
+                use_container_width=True,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
@@ -165,6 +165,40 @@ def make_count_chart(counts: dict[str, int], label: str) -> alt.Chart:
             tooltip=[alt.Tooltip(f"{label}:N"), alt.Tooltip("count:Q", title="Count")],
         )
         .properties(height=260)
+    )
+
+
+def make_dynamic_chart(counts: dict[str, int], label: str, chart_type: str, sort_order: str, top_n: int) -> alt.Chart:
+    items = list(counts.items())
+    if sort_order == "Descending by Count":
+        items = sorted(items, key=lambda item: item[1], reverse=True)
+    else:
+        items = sorted(items, key=lambda item: item[0].lower())
+    items = items[:top_n]
+    chart_data = pd.DataFrame(items, columns=[label, "count"])
+
+    if chart_type == "Donut":
+        return (
+            alt.Chart(chart_data)
+            .mark_arc(innerRadius=60)
+            .encode(
+                theta=alt.Theta("count:Q"),
+                color=alt.Color(f"{label}:N"),
+                tooltip=[alt.Tooltip(f"{label}:N"), alt.Tooltip("count:Q", title="Count")],
+            )
+            .properties(height=320)
+        )
+
+    return (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X(f"{label}:N", sort=[item[0] for item in items]),
+            y=alt.Y("count:Q", title="Count"),
+            color=alt.Color(f"{label}:N", legend=None),
+            tooltip=[alt.Tooltip(f"{label}:N"), alt.Tooltip("count:Q", title="Count")],
+        )
+        .properties(height=320)
     )
 
 
