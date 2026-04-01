@@ -694,6 +694,10 @@ def render_settings_page() -> None:
 
     st.divider()
     st.subheader("Data Management")
+    st.markdown(
+        '<p style="color:#DC2626;font-size:1.05rem;font-weight:700;margin:0;">Clear All Data</p>',
+        unsafe_allow_html=True,
+    )
     st.caption("Use with caution.")
     uploaded_csv = st.file_uploader(
         "Bulk upload tickets from exported CSV backup",
