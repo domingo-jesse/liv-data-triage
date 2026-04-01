@@ -1,8 +1,19 @@
 import json
+import os
 from pathlib import Path
 from typing import Any
 
-DATA_FILE = Path("data/tickets.json")
+LEGACY_DATA_FILE = Path("data/tickets.json")
+
+
+def _resolve_data_file() -> Path:
+    configured_path = os.getenv("TICKET_DATA_FILE", "").strip()
+    if configured_path:
+        return Path(configured_path).expanduser()
+    return Path.home() / ".liv_ticketing" / "tickets.json"
+
+
+DATA_FILE = _resolve_data_file()
 
 
 def _default_payload() -> dict[str, Any]:
@@ -17,6 +28,8 @@ def _default_payload() -> dict[str, Any]:
 
 def ensure_data_file() -> None:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if not DATA_FILE.exists() and LEGACY_DATA_FILE.exists():
+        DATA_FILE.write_text(LEGACY_DATA_FILE.read_text(encoding="utf-8"), encoding="utf-8")
     if not DATA_FILE.exists():
         DATA_FILE.write_text(json.dumps(_default_payload(), indent=2), encoding="utf-8")
 
