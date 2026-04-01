@@ -3,14 +3,16 @@ import os
 from pathlib import Path
 from typing import Any
 
-LEGACY_DATA_FILE = Path("data/tickets.json")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_DATA_FILE = PROJECT_ROOT / "data" / "tickets.json"
+LEGACY_HOME_DATA_FILE = Path.home() / ".liv_ticketing" / "tickets.json"
 
 
 def _resolve_data_file() -> Path:
     configured_path = os.getenv("TICKET_DATA_FILE", "").strip()
     if configured_path:
         return Path(configured_path).expanduser()
-    return Path.home() / ".liv_ticketing" / "tickets.json"
+    return PROJECT_DATA_FILE
 
 
 DATA_FILE = _resolve_data_file()
@@ -29,8 +31,8 @@ def _default_payload() -> dict[str, Any]:
 
 def ensure_data_file() -> None:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if not DATA_FILE.exists() and LEGACY_DATA_FILE.exists():
-        DATA_FILE.write_text(LEGACY_DATA_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+    if not DATA_FILE.exists() and LEGACY_HOME_DATA_FILE.exists():
+        DATA_FILE.write_text(LEGACY_HOME_DATA_FILE.read_text(encoding="utf-8"), encoding="utf-8")
     if not DATA_FILE.exists() and BACKUP_FILE.exists():
         DATA_FILE.write_text(BACKUP_FILE.read_text(encoding="utf-8"), encoding="utf-8")
     if not DATA_FILE.exists():
