@@ -27,7 +27,7 @@ st.set_page_config(
     page_title="Liv's Data Triage System",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -46,7 +46,7 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: #E9EBF1;
+                background: #F3F6FB;
                 color: #0F172A;
                 min-height: 100vh;
                 font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -58,55 +58,19 @@ def apply_professional_theme() -> None:
                 background: transparent;
             }
             [data-testid="stSidebar"] {
-                display: none;
+                background: #111827;
+                border-right: 1px solid #1F2937;
             }
-            [data-testid="stSidebarNav"] {
-                display: none;
+            [data-testid="stSidebar"] * {
+                color: #E5E7EB !important;
             }
             .main-title {
                 font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-                font-size: 3.15rem;
+                font-size: 2.8rem;
                 font-weight: 800;
-                margin: 0 0 0.7rem 0;
-                color: #2B2E3C;
+                margin: 0;
+                color: #0F172A;
                 letter-spacing: 0.01em;
-            }
-            .app-shell {
-                border: 1px solid #54596A;
-                background: #E9EBF1;
-                min-height: calc(100vh - 2rem);
-            }
-            .nav-panel {
-                background: linear-gradient(180deg, #0A1536 0%, #172649 100%);
-                color: #F8FAFC;
-                min-height: calc(100vh - 2rem);
-                padding: 2rem 1.2rem 1.5rem 1.2rem;
-            }
-            .nav-header {
-                font-size: 2rem;
-                font-weight: 700;
-                margin-bottom: 0.55rem;
-            }
-            .nav-sub {
-                color: #B8C1D9;
-                margin-bottom: 0.9rem;
-            }
-            .app-banner {
-                background: linear-gradient(90deg, #349FE5 0%, #4640D8 100%);
-                border-radius: 18px;
-                padding: 0.9rem 1.1rem;
-                color: #EAF0FF;
-                box-shadow: 0 10px 24px rgba(52, 102, 225, 0.2);
-                margin-bottom: 1rem;
-            }
-            .app-banner .title {
-                font-size: 1.35rem;
-                font-weight: 700;
-            }
-            .app-banner .sub {
-                margin-top: 0.2rem;
-                font-size: 1.08rem;
-                color: #D8E4FF;
             }
             .stButton>button[kind="primary"] {
                 background: #0F172A;
@@ -147,29 +111,51 @@ def apply_professional_theme() -> None:
                 overflow: hidden;
             }
             .block-container {
-                padding-top: 1rem;
-                max-width: 100%;
+                padding-top: 0.5rem;
             }
-            [data-testid="column"]:has(.nav-panel) {
-                padding-right: 0 !important;
-                margin-right: 0 !important;
+            .sidebar-nav-title {
+                font-size: 0.80rem;
+                font-weight: 700;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: #9CA3AF;
+                margin-top: 0.25rem;
+                margin-bottom: 0.35rem;
             }
-            [data-testid="column"]:has(.content-panel) {
-                padding-left: 2rem !important;
-                padding-right: 2rem !important;
+            [data-testid="stSidebar"] .stRadio > div {
+                gap: 0.3rem;
             }
-            div[data-testid="stRadio"] label p {
-                font-size: 1.7rem !important;
-                color: #E4E8F4 !important;
-                font-weight: 500 !important;
+            [data-testid="stSidebar"] .stRadio label {
+                width: 100%;
+                border: 1px solid #374151;
+                border-radius: 10px;
+                padding: 0.35rem 0.55rem;
+                background: #111827;
             }
-            div[data-testid="stRadio"] > div {
-                gap: 0.35rem;
+            .st-key-sidebar_close,
+            .st-key-sidebar_open {
+                position: fixed;
+                top: 0.7rem;
+                left: 0.7rem;
+                z-index: 999;
             }
-            div[data-testid="stRadio"] label {
-                padding: 0.15rem 0;
+            .st-key-sidebar_close button,
+            .st-key-sidebar_open button {
+                min-height: 2rem;
+                padding: 0.1rem 0.55rem;
+                font-size: 1.25rem;
+                border-radius: 999px;
+                border: 1px solid #CBD5E1;
+                background: #FFFFFF;
+                color: #334155;
             }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <p class="main-title">Liv's Data Triage System</p>
         """,
         unsafe_allow_html=True,
     )
@@ -183,6 +169,37 @@ def initialize_state() -> None:
         st.session_state.selected_ticket_id = None
     if "selected_archived_ticket_id" not in st.session_state:
         st.session_state.selected_archived_ticket_id = None
+    if "sidebar_collapsed" not in st.session_state:
+        st.session_state.sidebar_collapsed = False
+
+
+def apply_sidebar_visibility() -> None:
+    if not st.session_state.sidebar_collapsed:
+        return
+    st.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"] {
+                display: none !important;
+            }
+            [data-testid="stSidebarNav"] {
+                display: none !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_sidebar_toggle_controls() -> None:
+    if st.session_state.sidebar_collapsed:
+        if st.button("»", key="sidebar_open", help="Open sidebar"):
+            st.session_state.sidebar_collapsed = False
+            st.rerun()
+    else:
+        if st.button("«", key="sidebar_close", help="Collapse sidebar"):
+            st.session_state.sidebar_collapsed = True
+            st.rerun()
 
 
 def persist() -> None:
@@ -634,57 +651,34 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     apply_professional_theme()
+    apply_sidebar_visibility()
+    render_sidebar_toggle_controls()
     pages = ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"]
 
     page = st.session_state.get("active_page", "Dashboard")
-    if page not in pages:
-        page = "Dashboard"
-    nav_labels = [f"🔴 {pages[0]}"] + [f"⚪ {p}" for p in pages[1:]]
-    page_to_label = dict(zip(pages, nav_labels))
-    label_to_page = {value: key for key, value in page_to_label.items()}
-    default_index = pages.index(page)
+    if not st.session_state.sidebar_collapsed:
+        with st.sidebar:
+            st.markdown("## Navigation")
+            st.markdown('<div class="sidebar-nav-title">Pages</div>', unsafe_allow_html=True)
+            page = st.radio("Page", pages, label_visibility="collapsed")
+            st.divider()
+            st.caption("Liv's Data Triage System")
+            st.session_state.active_page = page
+    else:
+        if page not in pages:
+            page = "Dashboard"
+            st.session_state.active_page = page
 
-    st.markdown('<div class="app-shell">', unsafe_allow_html=True)
-    nav_col, content_col = st.columns([0.95, 2.2], vertical_alignment="top")
-    with nav_col:
-        st.markdown('<div class="nav-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="nav-header">Navigation</div>', unsafe_allow_html=True)
-        st.markdown('<div class="nav-sub">Go to</div>', unsafe_allow_html=True)
-        selected_label = st.radio(
-            "Navigation",
-            nav_labels,
-            index=default_index,
-            key="custom_nav",
-            label_visibility="collapsed",
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with content_col:
-        st.markdown('<div class="content-panel">', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class="app-banner">
-                <div class="title">🎫 AI Ticketing System</div>
-                <div class="sub">Durable ticket persistence + polished operations dashboard</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        selected_page = label_to_page[selected_label]
-        st.session_state.active_page = selected_page
-
-        if selected_page == "Dashboard":
-            render_dashboard()
-        elif selected_page == "Ticket Queue":
-            render_ticket_queue_page()
-        elif selected_page == "Create Ticket Intake":
-            render_ticket_intake_page()
-        elif selected_page == "Completed Queue":
-            render_completed_queue_page()
-        else:
-            render_settings_page()
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    if page == "Dashboard":
+        render_dashboard()
+    elif page == "Ticket Queue":
+        render_ticket_queue_page()
+    elif page == "Create Ticket Intake":
+        render_ticket_intake_page()
+    elif page == "Completed Queue":
+        render_completed_queue_page()
+    else:
+        render_settings_page()
 
 
 if __name__ == "__main__":
