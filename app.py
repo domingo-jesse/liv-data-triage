@@ -60,12 +60,9 @@ def render_dashboard() -> None:
     with overview_tab:
         st.subheader("Snapshot")
         c4, c5, c6 = st.columns(3)
-        c4.write("**By Status**")
-        c4.json(stats["status"])
-        c5.write("**By Urgency**")
-        c5.json(stats["urgency"])
-        c6.write("**By Category**")
-        c6.json(stats["category"])
+        render_breakdown(c4, "By Status", stats["status"], stats["total"])
+        render_breakdown(c5, "By Urgency", stats["urgency"], stats["total"])
+        render_breakdown(c6, "By Category", stats["category"], stats["total"])
 
     with analytics_tab:
         with st.spinner("Loading analytics visuals..."):
@@ -75,6 +72,18 @@ def render_dashboard() -> None:
             st.bar_chart(pd.DataFrame.from_dict(stats["urgency"], orient="index", columns=["count"]))
             st.subheader("Counts by Category")
             st.bar_chart(pd.DataFrame.from_dict(stats["category"], orient="index", columns=["count"]))
+
+
+def render_breakdown(container, title: str, counts: dict[str, int], total: int) -> None:
+    container.write(f"**{title}**")
+    if not counts:
+        container.caption("No data available.")
+        return
+
+    for label, value in sorted(counts.items(), key=lambda item: item[1], reverse=True):
+        percentage = (value / total * 100) if total else 0
+        container.markdown(f"**{label}** · {value} ({percentage:.1f}%)")
+        container.progress(min(percentage / 100, 1.0))
 
 
 def render_ticket_queue(filtered_tickets: list[dict]) -> None:
