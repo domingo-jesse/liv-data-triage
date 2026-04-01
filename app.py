@@ -23,7 +23,7 @@ from utils.ticket_utils import (
     restore_ticket,
 )
 
-st.set_page_config(page_title="AI Ticketing System", page_icon="🎫", layout="wide")
+st.set_page_config(page_title="Liv Data Triage System", page_icon="📊", layout="wide")
 
 
 @st.cache_data
@@ -41,37 +41,39 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background: radial-gradient(circle at top right, #E0EAFF 0%, #F7F9FF 35%, #FFFFFF 100%);
+                background: #F5F7FA;
+                color: #0F172A;
             }
             [data-testid="stSidebar"] {
-                background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+                background: #111827;
+                border-right: 1px solid #1F2937;
             }
             [data-testid="stSidebar"] * {
-                color: #E2E8F0 !important;
+                color: #E5E7EB !important;
             }
-            .hero-banner {
-                border-radius: 18px;
-                padding: 1rem 1.25rem;
-                margin: 0.5rem 0 1.25rem 0;
-                color: white;
-                background: linear-gradient(120deg, #0EA5E9 0%, #2563EB 40%, #4F46E5 100%);
-                box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
+            .main-header {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 12px;
+                padding: 0.9rem 1rem;
+                margin: 0.2rem 0 1rem 0;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
             }
-            .hero-title {
-                font-size: 1.2rem;
+            .main-title {
+                font-size: 1.15rem;
                 font-weight: 700;
                 margin: 0;
-            }
-            .hero-subtitle {
-                margin: 0.25rem 0 0 0;
-                opacity: 0.95;
-                font-size: 0.94rem;
+                color: #0F172A;
             }
             .stButton>button[kind="primary"] {
-                background: linear-gradient(90deg, #2563EB, #4F46E5);
-                border: none;
+                background: #0F172A;
+                border: 1px solid #0F172A;
                 border-radius: 10px;
                 color: white;
+            }
+            .stButton>button[kind="secondary"] {
+                border-radius: 10px;
+                border: 1px solid #CBD5E1;
             }
             .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
                 border-radius: 10px;
@@ -85,9 +87,8 @@ def apply_professional_theme() -> None:
     )
     st.markdown(
         """
-        <div class="hero-banner">
-            <p class="hero-title">🎫 AI Ticketing System</p>
-            <p class="hero-subtitle">Durable ticket persistence + polished operations dashboard</p>
+        <div class="main-header">
+            <p class="main-title">Liv Data Triage System</p>
         </div>
         """,
         unsafe_allow_html=True,
