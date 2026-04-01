@@ -6,7 +6,12 @@ DATA_FILE = Path("data/tickets.json")
 
 
 def _default_payload() -> dict[str, Any]:
-    return {"tickets": [], "activity_log": [], "next_ticket_id": 1}
+    return {
+        "tickets": [],
+        "activity_log": [],
+        "next_ticket_id": 1,
+        "ai_instruction_cache": {},
+    }
 
 
 def ensure_data_file() -> None:
@@ -18,7 +23,10 @@ def ensure_data_file() -> None:
 def load_data() -> dict[str, Any]:
     ensure_data_file()
     try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        payload = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        # Backfill newly added top-level keys for older JSON payloads.
+        payload.setdefault("ai_instruction_cache", {})
+        return payload
     except json.JSONDecodeError:
         payload = _default_payload()
         DATA_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")

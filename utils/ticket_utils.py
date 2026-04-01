@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
 STATUS_VALUES = ["New", "In Progress", "Waiting", "Completed"]
@@ -14,6 +15,16 @@ def now_iso() -> str:
 
 def ticket_label(ticket_id: int) -> str:
     return f"TKT-{ticket_id:04d}"
+
+
+def instruction_cache_key(ticket_like: dict[str, Any]) -> str:
+    base = "|".join([
+        str(ticket_like.get("title", "")).strip().lower(),
+        str(ticket_like.get("category", "")).strip().lower(),
+        str(ticket_like.get("request_description", "")).strip().lower(),
+        str(ticket_like.get("desired_outcome", "")).strip().lower(),
+    ])
+    return sha256(base.encode("utf-8")).hexdigest()
 
 
 def add_activity(data: dict[str, Any], ticket_id: int | None, action: str, detail: str) -> None:
