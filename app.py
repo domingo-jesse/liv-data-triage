@@ -57,6 +57,12 @@ def apply_professional_theme() -> None:
             header[data-testid="stHeader"] {
                 background: transparent;
             }
+            [data-testid="stSidebar"] {
+                display: none;
+            }
+            [data-testid="stSidebarNav"] {
+                display: none;
+            }
             .main-title {
                 font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
                 font-size: 3.15rem;
@@ -64,6 +70,26 @@ def apply_professional_theme() -> None:
                 margin: 0 0 0.7rem 0;
                 color: #2B2E3C;
                 letter-spacing: 0.01em;
+            }
+            .app-shell {
+                border: 1px solid #54596A;
+                background: #E9EBF1;
+                min-height: calc(100vh - 2rem);
+            }
+            .nav-panel {
+                background: linear-gradient(180deg, #0A1536 0%, #172649 100%);
+                color: #F8FAFC;
+                min-height: calc(100vh - 2rem);
+                padding: 2rem 1.2rem 1.5rem 1.2rem;
+            }
+            .nav-header {
+                font-size: 2rem;
+                font-weight: 700;
+                margin-bottom: 0.55rem;
+            }
+            .nav-sub {
+                color: #B8C1D9;
+                margin-bottom: 0.9rem;
             }
             .app-banner {
                 background: linear-gradient(90deg, #349FE5 0%, #4640D8 100%);
@@ -123,6 +149,25 @@ def apply_professional_theme() -> None:
             .block-container {
                 padding-top: 1rem;
                 max-width: 100%;
+            }
+            [data-testid="column"]:has(.nav-panel) {
+                padding-right: 0 !important;
+                margin-right: 0 !important;
+            }
+            [data-testid="column"]:has(.content-panel) {
+                padding-left: 2rem !important;
+                padding-right: 2rem !important;
+            }
+            div[data-testid="stRadio"] label p {
+                font-size: 1.7rem !important;
+                color: #E4E8F4 !important;
+                font-weight: 500 !important;
+            }
+            div[data-testid="stRadio"] > div {
+                gap: 0.35rem;
+            }
+            div[data-testid="stRadio"] label {
+                padding: 0.15rem 0;
             }
         </style>
         """,
@@ -594,31 +639,52 @@ def main() -> None:
     page = st.session_state.get("active_page", "Dashboard")
     if page not in pages:
         page = "Dashboard"
-    with st.sidebar:
-        st.title("Navigation")
-        selected_page = st.radio("Go to", pages, index=pages.index(page))
-    st.session_state.active_page = selected_page
+    nav_labels = [f"🔴 {pages[0]}"] + [f"⚪ {p}" for p in pages[1:]]
+    page_to_label = dict(zip(pages, nav_labels))
+    label_to_page = {value: key for key, value in page_to_label.items()}
+    default_index = pages.index(page)
 
-    st.markdown(
-        """
-        <div class="app-banner">
-            <div class="title">🎫 AI Ticketing System</div>
-            <div class="sub">Durable ticket persistence + polished operations dashboard</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="app-shell">', unsafe_allow_html=True)
+    nav_col, content_col = st.columns([0.95, 2.2], vertical_alignment="top")
+    with nav_col:
+        st.markdown('<div class="nav-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="nav-header">Navigation</div>', unsafe_allow_html=True)
+        st.markdown('<div class="nav-sub">Go to</div>', unsafe_allow_html=True)
+        selected_label = st.radio(
+            "Navigation",
+            nav_labels,
+            index=default_index,
+            key="custom_nav",
+            label_visibility="collapsed",
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    if selected_page == "Dashboard":
-        render_dashboard()
-    elif selected_page == "Ticket Queue":
-        render_ticket_queue_page()
-    elif selected_page == "Create Ticket Intake":
-        render_ticket_intake_page()
-    elif selected_page == "Completed Queue":
-        render_completed_queue_page()
-    else:
-        render_settings_page()
+    with content_col:
+        st.markdown('<div class="content-panel">', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="app-banner">
+                <div class="title">🎫 AI Ticketing System</div>
+                <div class="sub">Durable ticket persistence + polished operations dashboard</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        selected_page = label_to_page[selected_label]
+        st.session_state.active_page = selected_page
+
+        if selected_page == "Dashboard":
+            render_dashboard()
+        elif selected_page == "Ticket Queue":
+            render_ticket_queue_page()
+        elif selected_page == "Create Ticket Intake":
+            render_ticket_intake_page()
+        elif selected_page == "Completed Queue":
+            render_completed_queue_page()
+        else:
+            render_settings_page()
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
