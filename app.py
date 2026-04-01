@@ -41,36 +41,34 @@ def apply_professional_theme() -> None:
         """
         <style>
             .stApp {
-                background:
-                    radial-gradient(circle at 50% 26%, rgba(191, 219, 254, 0.96) 0%, rgba(147, 197, 253, 0.68) 16%, rgba(59, 130, 246, 0.34) 32%, rgba(30, 64, 175, 0.2) 48%, rgba(15, 23, 42, 0) 58%),
-                    linear-gradient(180deg, #1E3A8A 0%, #1D4ED8 46%, #60A5FA 70%, #DBEAFE 100%);
+                background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 52%, #E2E8F0 100%);
                 color: #0F172A;
                 min-height: 100vh;
             }
             [data-testid="stSidebar"] {
-                background: #111827;
-                border-right: 1px solid #1F2937;
+                background: #0F172A;
+                border-right: 1px solid #1E293B;
             }
             [data-testid="stSidebar"] * {
                 color: #E5E7EB !important;
             }
             .main-header {
                 background: #FFFFFF;
-                border: 1px solid #E5E7EB;
+                border: 1px solid #CBD5E1;
                 border-radius: 12px;
-                padding: 0.9rem 1rem;
+                padding: 1rem 1.1rem;
                 margin: 0.2rem 0 1rem 0;
-                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+                box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
             }
             .main-title {
-                font-size: 1.15rem;
+                font-size: 1.2rem;
                 font-weight: 700;
                 margin: 0;
                 color: #0F172A;
             }
             .stButton>button[kind="primary"] {
-                background: #0F172A;
-                border: 1px solid #0F172A;
+                background: #1E293B;
+                border: 1px solid #1E293B;
                 border-radius: 10px;
                 color: white;
             }
@@ -80,6 +78,12 @@ def apply_professional_theme() -> None:
             }
             .stDataFrame, div[data-baseweb="select"], div[data-baseweb="input"] {
                 border-radius: 10px;
+            }
+            [data-testid="stMetric"] {
+                background: #FFFFFF;
+                border: 1px solid #CBD5E1;
+                border-radius: 12px;
+                padding: 0.6rem 0.75rem;
             }
             .block-container {
                 padding-top: 1.2rem;
