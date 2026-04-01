@@ -46,11 +46,11 @@ def apply_professional_theme() -> None:
                 min-height: 100vh;
                 font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             }
-            div[data-testid="stToolbar"] {
+            header[data-testid="stHeader"] {
                 display: none;
             }
-            header[data-testid="stHeader"] {
-                background: transparent;
+            div[data-testid="stToolbar"] {
+                display: none;
             }
             [data-testid="stSidebar"] {
                 background: #111827;
@@ -96,14 +96,9 @@ def apply_professional_theme() -> None:
             .analytics-card {
                 border: 1px solid #CBD5E1;
                 border-radius: 14px;
-                overflow: hidden;
                 padding: 12px 12px 4px 12px;
                 background: #FFFFFF;
                 box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-            }
-            .analytics-card [data-testid="stVegaLiteChart"] {
-                border-radius: 12px;
-                overflow: hidden;
             }
             .block-container {
                 padding-top: 0.2rem;
