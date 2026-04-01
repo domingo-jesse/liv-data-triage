@@ -23,7 +23,12 @@ from utils.ticket_utils import (
     restore_ticket,
 )
 
-st.set_page_config(page_title="Liv's Data Triage System", page_icon="📈", layout="wide")
+st.set_page_config(
+    page_title="Liv's Data Triage System",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 
 @st.cache_data
