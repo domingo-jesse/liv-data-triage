@@ -202,8 +202,8 @@ def render_ticket_detail() -> None:
             st.write(f"- {_format_iso(item['timestamp'])} | **{item['action']}** — {item['detail']}")
 
 
-def render_tickets_page() -> None:
-    st.title("Tickets")
+def render_ticket_queue_page() -> None:
+    st.title("Ticket Queue")
     s1, s2, s3, s4 = st.columns(4)
     search = s1.text_input("Search")
     status_filter = s2.selectbox("Status", ["All"] + STATUS_VALUES)
@@ -213,15 +213,15 @@ def render_tickets_page() -> None:
 
     filtered = apply_filters(st.session_state.data["tickets"], search, status_filter, urgency_filter, category_filter)
 
-    left, right = st.columns([1.2, 1], gap="large")
-    with left:
-        st.subheader("Ticket Queue")
-        render_ticket_queue(filtered)
-    with right:
-        render_create_ticket_form()
-
+    render_ticket_queue(filtered)
     st.divider()
     render_ticket_detail()
+
+
+def render_ticket_intake_page() -> None:
+    st.title("Create Ticket Intake")
+    render_create_ticket_form()
+    st.caption("Use the sidebar to navigate to the Ticket Queue page to review and manage created tickets.")
 
 
 def render_analytics_page() -> None:
@@ -264,12 +264,14 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Tickets", "Analytics", "Settings"])
+    page = st.sidebar.radio("Go to", ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Analytics", "Settings"])
 
     if page == "Dashboard":
         render_dashboard()
-    elif page == "Tickets":
-        render_tickets_page()
+    elif page == "Ticket Queue":
+        render_ticket_queue_page()
+    elif page == "Create Ticket Intake":
+        render_ticket_intake_page()
     elif page == "Analytics":
         render_analytics_page()
     else:
