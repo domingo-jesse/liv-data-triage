@@ -132,6 +132,23 @@ def apply_professional_theme() -> None:
                 padding: 0.35rem 0.55rem;
                 background: #111827;
             }
+            .st-key-sidebar_close,
+            .st-key-sidebar_open {
+                position: fixed;
+                top: 0.7rem;
+                left: 0.7rem;
+                z-index: 999;
+            }
+            .st-key-sidebar_close button,
+            .st-key-sidebar_open button {
+                min-height: 2rem;
+                padding: 0.1rem 0.55rem;
+                font-size: 1.25rem;
+                border-radius: 999px;
+                border: 1px solid #CBD5E1;
+                background: #FFFFFF;
+                color: #334155;
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -152,6 +169,37 @@ def initialize_state() -> None:
         st.session_state.selected_ticket_id = None
     if "selected_archived_ticket_id" not in st.session_state:
         st.session_state.selected_archived_ticket_id = None
+    if "sidebar_collapsed" not in st.session_state:
+        st.session_state.sidebar_collapsed = False
+
+
+def apply_sidebar_visibility() -> None:
+    if not st.session_state.sidebar_collapsed:
+        return
+    st.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"] {
+                display: none !important;
+            }
+            [data-testid="stSidebarNav"] {
+                display: none !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_sidebar_toggle_controls() -> None:
+    if st.session_state.sidebar_collapsed:
+        if st.button("»", key="sidebar_open", help="Open sidebar"):
+            st.session_state.sidebar_collapsed = False
+            st.rerun()
+    else:
+        if st.button("«", key="sidebar_close", help="Collapse sidebar"):
+            st.session_state.sidebar_collapsed = True
+            st.rerun()
 
 
 def persist() -> None:
@@ -603,14 +651,23 @@ def render_settings_page() -> None:
 def main() -> None:
     initialize_state()
     apply_professional_theme()
+    apply_sidebar_visibility()
+    render_sidebar_toggle_controls()
     pages = ["Dashboard", "Ticket Queue", "Create Ticket Intake", "Completed Queue", "Settings"]
 
-    with st.sidebar:
-        st.markdown("## Navigation")
-        st.markdown('<div class="sidebar-nav-title">Pages</div>', unsafe_allow_html=True)
-        page = st.radio("Page", pages, label_visibility="collapsed")
-        st.divider()
-        st.caption("Liv's Data Triage System")
+    page = st.session_state.get("active_page", "Dashboard")
+    if not st.session_state.sidebar_collapsed:
+        with st.sidebar:
+            st.markdown("## Navigation")
+            st.markdown('<div class="sidebar-nav-title">Pages</div>', unsafe_allow_html=True)
+            page = st.radio("Page", pages, label_visibility="collapsed")
+            st.divider()
+            st.caption("Liv's Data Triage System")
+            st.session_state.active_page = page
+    else:
+        if page not in pages:
+            page = "Dashboard"
+            st.session_state.active_page = page
 
     if page == "Dashboard":
         render_dashboard()
