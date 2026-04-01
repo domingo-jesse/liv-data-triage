@@ -228,6 +228,39 @@ def render_breakdown(container, title: str, counts: dict[str, int], total: int, 
         )
 
 
+
+
+def _serialize_ticket_for_export(ticket: dict) -> dict[str, str]:
+    notes = "\n".join(
+        f"{_format_iso(n.get('timestamp', ''))}: {n.get('text', '')}" for n in ticket.get("notes", [])
+    )
+    history = "\n".join(
+        f"{_format_iso(item.get('timestamp', ''))} | {item.get('action', '')} | {item.get('detail', '')}"
+        for item in ticket.get("history", [])
+    )
+    return {
+        "ID": ticket.get("ticket_code", ""),
+        "Title": ticket.get("title", ""),
+        "Requester": ticket.get("requester", ""),
+        "Department": ticket.get("department", ""),
+        "Urgency": ticket.get("urgency", ""),
+        "Status": ticket.get("status", ""),
+        "Category": ticket.get("category", ""),
+        "Created": _format_iso(ticket.get("created_at", "")),
+        "Completed": _format_iso(ticket.get("completed_at", "")),
+        "Request Description": ticket.get("request_description", ""),
+        "Desired Outcome": ticket.get("desired_outcome", ""),
+        "AI Work Instructions": ticket.get("ai_instructions", ""),
+        "Notes / Comments": notes,
+        "Activity Log": history,
+    }
+
+
+def _build_ticket_csv(tickets: list[dict]) -> bytes:
+    rows = [_serialize_ticket_for_export(ticket) for ticket in tickets]
+    csv_text = pd.DataFrame(rows).to_csv(index=False)
+    return csv_text.encode("utf-8")
+
 def render_ticket_queue(filtered_tickets: list[dict], selector_key: str, state_key: str) -> None:
     rows = [
         {
@@ -467,6 +500,18 @@ def render_ticket_queue_page() -> None:
     filtered = apply_filters(st.session_state.data["tickets"], search, status_filter, urgency_filter, category_filter)
 
     filtered = [t for t in filtered if t.get("status") != "Completed"]
+
+    export_col, _ = st.columns([1, 5])
+    with export_col:
+        st.download_button(
+            "Export Queue CSV",
+            data=_build_ticket_csv(filtered),
+            file_name=f"ticket-queue-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.csv",
+            mime="text/csv",
+            disabled=not filtered,
+            help="Exports all visible ticket fields, including AI work instructions, notes, and activity log.",
+        )
+
     render_ticket_queue(filtered, "ticket_selector_active", "selected_ticket_id")
     st.divider()
     render_ticket_detail(st.session_state.selected_ticket_id)
