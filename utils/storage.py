@@ -9,6 +9,7 @@ HOME_DATA_FILE = Path.home() / ".liv_ticketing" / "tickets.json"
 
 
 def _resolve_data_file() -> Path:
+    # Highest priority: explicit env override for local/dev/CI flexibility.
     configured_path = os.getenv("TICKET_DATA_FILE", "").strip()
     if configured_path:
         return Path(configured_path).expanduser()
@@ -21,6 +22,7 @@ BACKUP_FILE = DATA_FILE.with_suffix(".json.bak")
 
 
 def _default_payload() -> dict[str, Any]:
+    # Centralized schema defaults so all reset/recovery paths stay consistent.
     return {
         "tickets": [],
         "archived_tickets": [],
@@ -31,8 +33,10 @@ def _default_payload() -> dict[str, Any]:
 
 
 def ensure_data_file() -> None:
+    # Ensure parent directory exists before any file reads/writes.
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+    # Recovery candidates in preference order.
     candidate_restore_files: list[Path] = [
         BACKUP_FILE,
         PROJECT_DATA_FILE,
@@ -46,11 +50,13 @@ def ensure_data_file() -> None:
         seen.add(candidate)
         if candidate == DATA_FILE.resolve():
             continue
+        # If destination is missing, bootstrap from the first existing candidate.
         if not DATA_FILE.exists() and candidate.exists():
             DATA_FILE.write_text(candidate.read_text(encoding="utf-8"), encoding="utf-8")
             break
 
     if not DATA_FILE.exists():
+        # First-run initialization: create both primary and backup files.
         payload = _default_payload()
         serialized = json.dumps(payload, indent=2)
         DATA_FILE.write_text(serialized, encoding="utf-8")
@@ -69,6 +75,7 @@ def load_data() -> dict[str, Any]:
         payload.setdefault("ai_instruction_cache", {})
         return payload
     except json.JSONDecodeError:
+        # Corrupt primary file: try backup before resetting to defaults.
         if BACKUP_FILE.exists():
             try:
                 payload = json.loads(BACKUP_FILE.read_text(encoding="utf-8"))
@@ -80,7 +87,9 @@ def load_data() -> dict[str, Any]:
                 DATA_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
                 return payload
             except json.JSONDecodeError:
+                # If backup is also corrupt, we fall through to full reset.
                 pass
+        # Last-resort recovery: recreate a clean payload.
         payload = _default_payload()
         serialized = json.dumps(payload, indent=2)
         DATA_FILE.write_text(serialized, encoding="utf-8")
@@ -90,8 +99,10 @@ def load_data() -> dict[str, Any]:
 
 def save_data(payload: dict[str, Any]) -> None:
     ensure_data_file()
+    # Atomic-ish write: emit to temp file first, then replace primary file.
     tmp_file = DATA_FILE.with_suffix(".json.tmp")
     serialized = json.dumps(payload, indent=2)
     tmp_file.write_text(serialized, encoding="utf-8")
     tmp_file.replace(DATA_FILE)
+    # Keep backup synchronized after successful primary write.
     BACKUP_FILE.write_text(serialized, encoding="utf-8")

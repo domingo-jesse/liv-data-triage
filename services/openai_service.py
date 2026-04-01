@@ -6,12 +6,14 @@ from openai import OpenAI
 
 
 SYSTEM_PROMPT = (
+    # Stable assistant behavior for instruction generation.
     "You are an internal operations assistant. Convert work requests into practical, "
     "clear execution guides for operations teams. Write concise but useful instructions."
 )
 
 
 def build_prompt(ticket: dict[str, str]) -> str:
+    # Build one canonical prompt format so outputs remain consistent across tickets.
     return f"""
 Create a structured response for this internal ticket.
 
@@ -42,8 +44,10 @@ Requirements:
 
 
 def generate_instructions(ticket: dict[str, str], model: str = "gpt-4.1-mini") -> str:
+    # Pull API key from environment; never hardcode credentials.
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
+        # Return a structured fallback the UI can render safely without exceptions.
         return (
             "## Request Summary\nOpenAI API key is not configured.\n\n"
             "## Task Type\nConfiguration issue\n\n"
@@ -56,6 +60,7 @@ def generate_instructions(ticket: dict[str, str], model: str = "gpt-4.1-mini") -
             "## Expected Output\nAI-generated work instructions for this ticket."
         )
 
+    # Create a short-lived client and ask the Responses API for markdown instructions.
     client = OpenAI(api_key=api_key)
     completion = client.responses.create(
         model=model,
